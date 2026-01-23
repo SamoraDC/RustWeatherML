@@ -1,0 +1,70 @@
+name: Daily Weather Predictions
+
+on:
+  schedule:
+    # Run every day at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build prediction binary
+        run: cargo build --release --bin daily_predictions
+
+      - name: Run predictions
+        run: |
+          ./target/release/daily_predictions --format markdown --update-readme
+        env:
+          RUST_LOG: info
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily weather predictions [skip ci]" && git push)
+
+  # Weekly model performance check
+  weekly-check:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6 * * 0'  # Only on Sundays
+    needs: predict
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check model performance
+        run: |
+          echo "Weekly model performance check"
+          echo "TODO: Implement performance decay detection"
+          echo "TODO: Check for data drift"
+          echo "TODO: Alert if retraining needed"
