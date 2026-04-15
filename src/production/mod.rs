@@ -16,4 +16,6 @@ pub mod open_meteo;
 pub mod pipeline;
 pub mod artifacts;
 pub mod predict;
+pub mod drift_monitor;
 pub mod report;
+pub mod dashboard;
