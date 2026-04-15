@@ -1,0 +1,303 @@
+{
+  "climate_zones_one_hot": [
+    "Aw",
+    "BWh",
+    "Cfa",
+    "Cfb",
+    "Csb",
+    "Cwa",
+    "Dfa",
+    "Dfb"
+  ],
+  "clip_pre_filter": {
+    "windgusts_10m": "max(windgusts_10m, windspeed_10m)"
+  },
+  "cyclic_encoding": {
+    "dow": [
+      "dow_sin",
+      "dow_cos"
+    ],
+    "doy": [
+      "doy_sin",
+      "doy_cos"
+    ],
+    "hour": [
+      "hour_sin",
+      "hour_cos"
+    ],
+    "month": [
+      "month_sin",
+      "month_cos"
+    ]
+  },
+  "drop_columns": [
+    "apparent_temperature",
+    "direct_radiation"
+  ],
+  "generator": "Notebook 02",
+  "gradient_features": [
+    "temp_change_1h",
+    "temp_change_3h",
+    "temp_change_6h",
+    "temp_change_24h",
+    "pressure_change_1h",
+    "pressure_change_3h",
+    "pressure_change_6h",
+    "pressure_change_24h",
+    "dewpoint_change_1h",
+    "dewpoint_change_6h",
+    "rh_change_1h",
+    "wind_change_1h"
+  ],
+  "input_columns": [
+    "city",
+    "country_code",
+    "climate_zone",
+    "latitude",
+    "longitude",
+    "elevation_m",
+    "timestamp",
+    "temperature_2m",
+    "dewpoint_2m",
+    "precipitation",
+    "rain",
+    "snowfall",
+    "windspeed_10m",
+    "windgusts_10m",
+    "winddirection_10m",
+    "pressure_msl",
+    "surface_pressure",
+    "cloudcover",
+    "shortwave_radiation",
+    "relativehumidity_2m",
+    "weathercode"
+  ],
+  "interaction_features": [
+    {
+      "formula": "temperature_2m * relativehumidity_2m / 100",
+      "name": "interact_t_rh"
+    },
+    {
+      "formula": "windspeed_10m * dewpoint_depression",
+      "name": "interact_wind_ddep"
+    },
+    {
+      "formula": "windspeed_10m * vpd",
+      "name": "interact_wind_vpd"
+    }
+  ],
+  "lag_specifications": [
+    {
+      "lags_hours": [
+        1,
+        3,
+        6,
+        12,
+        24,
+        48
+      ],
+      "prefix": "temp_lag",
+      "variable": "temperature_2m"
+    },
+    {
+      "lags_hours": [
+        1,
+        6,
+        24
+      ],
+      "prefix": "td_lag",
+      "variable": "dewpoint_2m"
+    },
+    {
+      "lags_hours": [
+        1,
+        3,
+        6,
+        12,
+        24
+      ],
+      "prefix": "pres_lag",
+      "variable": "pressure_msl"
+    },
+    {
+      "lags_hours": [
+        1,
+        6,
+        24
+      ],
+      "prefix": "wind_lag",
+      "variable": "windspeed_10m"
+    },
+    {
+      "lags_hours": [
+        1,
+        6,
+        24
+      ],
+      "prefix": "rh_lag",
+      "variable": "relativehumidity_2m"
+    },
+    {
+      "lags_hours": [
+        1,
+        3,
+        6
+      ],
+      "prefix": "precip_lag",
+      "variable": "precipitation"
+    }
+  ],
+  "log_transforms": [
+    {
+      "formula": "ln(precipitation + 1)",
+      "name": "log1p_precipitation"
+    },
+    {
+      "formula": "ln(windspeed_10m + 1)",
+      "name": "log1p_windspeed"
+    },
+    {
+      "formula": "ln(precip_sum_next_24h + 1)",
+      "name": "log1p_precip_next_24h"
+    }
+  ],
+  "n_columns_final": 114,
+  "n_rows_full": 30912,
+  "physical_clips": {
+    "cloudcover": [
+      0.0,
+      100.0
+    ],
+    "dewpoint_2m": [
+      -60.0,
+      40.0
+    ],
+    "precipitation": [
+      0.0,
+      500.0
+    ],
+    "pressure_msl": [
+      870.0,
+      1084.0
+    ],
+    "relativehumidity_2m": [
+      0.0,
+      100.0
+    ],
+    "shortwave_radiation": [
+      0.0,
+      1500.0
+    ],
+    "temperature_2m": [
+      -60.0,
+      60.0
+    ],
+    "windgusts_10m": [
+      0.0,
+      400.0
+    ],
+    "windspeed_10m": [
+      0.0,
+      300.0
+    ]
+  },
+  "rolling_window": {
+    "center": false,
+    "features": [
+      "temp_roll24_mean",
+      "temp_roll24_std",
+      "temp_roll24_min",
+      "temp_roll24_max",
+      "pres_roll24_min",
+      "pres_roll24_max",
+      "precip_roll24_sum",
+      "temp_diurnal_range_24h"
+    ],
+    "min_periods": 1,
+    "window_size_hours": 24
+  },
+  "solar_features": {
+    "clear_sky_radiation": "max(0, cos_solar_zenith) * 1361",
+    "clearness_index": "clip(shortwave_radiation / max(clear_sky_radiation, 1), 0, 1.5)",
+    "cos_solar_zenith": "sin(phi)*sin(delta) + cos(phi)*cos(delta)*cos(H)",
+    "declination_deg": "23.45 * sin(2 * PI * (284 + doy) / 365)",
+    "hour_angle_deg": "15 * (hour - 12)",
+    "is_daytime": "cos_solar_zenith > 0",
+    "solar_constant_W_m2": 1361.0
+  },
+  "splits": {
+    "strategy": "temporal_per_city",
+    "test": "day in (25, 31]",
+    "train": "day in [1, 20]",
+    "val": "day in (20, 25]"
+  },
+  "targets": [
+    {
+      "formula": "temperature_2m.shift(-24).over(city)",
+      "name": "temp_next_24h",
+      "type": "regression"
+    },
+    {
+      "formula": "temperature_2m.shift(-48).over(city)",
+      "name": "temp_next_48h",
+      "type": "regression"
+    },
+    {
+      "formula": "temperature_2m.shift(-72).over(city)",
+      "name": "temp_next_72h",
+      "type": "regression"
+    },
+    {
+      "formula": "precip_roll24_sum.shift(-24).over(city)",
+      "name": "precip_sum_next_24h",
+      "type": "regression"
+    },
+    {
+      "formula": "(precip_sum_next_24h > 0) as i64",
+      "name": "will_rain_next_24h",
+      "type": "classification"
+    },
+    {
+      "formula": "WMO 4677 mapping (see notebook)",
+      "name": "weather_condition",
+      "type": "classification"
+    }
+  ],
+  "thermodynamic_features": {
+    "dewpoint_depression": {
+      "formula": "T - Td",
+      "units": "°C"
+    },
+    "e_actual": {
+      "formula": "6.112 * exp(17.67 * Td / (Td + 243.5))",
+      "units": "hPa"
+    },
+    "e_sat_T": {
+      "formula": "6.112 * exp(17.67 * T / (T + 243.5))",
+      "units": "hPa"
+    },
+    "lcl_height_m": {
+      "formula": "125.0 * dewpoint_depression",
+      "units": "m"
+    },
+    "mixing_ratio": {
+      "formula": "0.622 * e_actual / (pressure_msl - e_actual)",
+      "units": "kg/kg"
+    },
+    "specific_humidity": {
+      "formula": "mixing_ratio / (1 + mixing_ratio)",
+      "units": "kg/kg"
+    },
+    "vpd": {
+      "formula": "e_sat_T - e_actual",
+      "units": "hPa"
+    }
+  },
+  "version": "1.0.0",
+  "wind_vector_features": {
+    "gust_excess": "windgusts_10m - windspeed_10m",
+    "log_windspeed": "ln(windspeed_10m + 1)",
+    "u_wind": "-windspeed_10m * sin(winddirection_10m * PI / 180)",
+    "v_wind": "-windspeed_10m * cos(winddirection_10m * PI / 180)"
+  }
+}
