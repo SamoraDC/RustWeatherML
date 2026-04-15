@@ -140,52 +140,50 @@
 
 <script>
 (async function () {
-  const today = new Date().toISOString().slice(0, 10);
-  // Try today, then yesterday, then an explicit file list.
-  const candidates = [];
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-    candidates.push(`../../data/predictions/${d}.json`);
-  }
+  // Pipeline v2.0: we always read `latest.json` which is overwritten
+  // on every run of the binary. Historical series come from
+  // monitoring_history/index.json, which lists every hour-stamped
+  // snapshot file in chronological order.
 
-  async function fetchFirst(urls) {
-    for (const u of urls) {
-      try {
-        const r = await fetch(u);
-        if (r.ok) return { url: u, data: await r.json() };
-      } catch (e) { /* ignore */ }
-    }
+  async function fetchJson(url) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) return await r.json();
+    } catch (e) { /* ignore */ }
     return null;
   }
 
   async function fetchHistory() {
+    const idx = await fetchJson('../../data/monitoring_history/index.json');
+    if (!idx || !idx.files) return [];
+    // Take the last 60 (cover ~7.5 days at a 3 h cadence).
+    const files = idx.files.slice(-60);
     const out = [];
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-      try {
-        const r = await fetch(`../../data/monitoring_history/${d}.json`);
-        if (r.ok) out.push({ date: d, data: await r.json() });
-      } catch (e) { /* ignore */ }
+    for (const f of files) {
+      const s = await fetchJson(`../../data/monitoring_history/${f}`);
+      if (s) out.push({ stamp: f.replace('.json', ''), data: s });
     }
     return out;
   }
 
-  const latest = await fetchFirst(candidates);
-  if (!latest) {
+  const report = await fetchJson('../../data/predictions/latest.json');
+  if (!report) {
     document.getElementById('meta').textContent =
       'No prediction files found. Run `./target/release/daily_predictions` first.';
     return;
   }
-  const report = latest.data;
 
   document.getElementById('meta').textContent =
-    `Source: ${latest.url} · generated ${report.generated_at_utc} · ${report.n_successful}/${report.n_cities} cities · contract v${report.model_contract_version}`;
+    `Source: data/predictions/latest.json · generated ${report.generated_at_utc} · ${report.n_successful}/${report.n_cities} cities · contract v${report.model_contract_version}`;
 
   // City cards
   const grid = document.getElementById('cityGrid');
   grid.innerHTML = '';
   for (const cf of report.cities) {
-    const rainPct = Math.round(cf.rain_next_24h.probability * 100);
+    const rain = cf.rain_next_24h;
+    const rainPct = Math.round(rain.probability * 100);
+    const nwpPct = Math.round(rain.nwp_probability * 100);
+    const mlPct = Math.round(rain.model_probability * 100);
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
@@ -199,7 +197,10 @@
         <div class="horizon"><div class="label">+72h</div><div class="value">${cf.multi_horizon.t_plus_72h.temperature_c.toFixed(1)}°</div></div>
       </div>
       <div class="rain-bar"><div class="rain-bar-fill" style="width:${rainPct}%"></div></div>
-      <div class="rain-label">Rain next 24 h: <strong>${rainPct}%</strong> · ${cf.rain_next_24h.n_hours_with_rain}h with precip · total ${cf.rain_next_24h.total_precip_mm.toFixed(1)} mm</div>
+      <div class="rain-label">
+        <strong>Rain (blend): ${rainPct}%</strong> — NWP ${nwpPct}% · ML ${mlPct}%<br>
+        ${rain.total_precip_mm.toFixed(1)} mm over ${rain.n_hours_with_rain} h
+      </div>
     `;
     grid.appendChild(card);
   }
@@ -265,8 +266,9 @@
   const history = await fetchHistory();
   const driftCtx = document.getElementById('driftChart').getContext('2d');
   if (history.length > 0) {
-    const labels = history.map(h => h.date);
+    const labels = history.map(h => h.stamp);
     const maxPsi = history.map(h => h.data.max_psi);
+    const alert = history.map(h => h.data.any_drift ? 1 : 0);
     new Chart(driftCtx, {
       type: 'line',
       data: {
@@ -278,16 +280,20 @@
           backgroundColor: 'rgba(250,204,21,0.2)',
           tension: 0.3,
           fill: true,
+          pointRadius: 2,
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          y: { beginAtZero: true, ticks: { color: '#94a3b8' } },
-          x: { ticks: { color: '#94a3b8' } }
+          y: { beginAtZero: true, ticks: { color: '#94a3b8' }, title: { display: true, text: 'PSI', color: '#94a3b8' } },
+          x: { ticks: { color: '#94a3b8', maxTicksLimit: 12 } }
         },
-        plugins: { legend: { labels: { color: '#e2e8f0' } } }
+        plugins: {
+          legend: { labels: { color: '#e2e8f0' } },
+          title: { display: true, text: `${history.length} snapshots`, color: '#94a3b8' }
+        }
       }
     });
   } else {
