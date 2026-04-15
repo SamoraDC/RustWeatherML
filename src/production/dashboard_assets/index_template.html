@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RustWeatherML — Live Dashboard</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #334155;
+    --accent: #38bdf8;
+    --accent-soft: rgba(56, 189, 248, 0.12);
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --good: #4ade80;
+    --warn: #facc15;
+    --bad: #f87171;
+    --rain: #60a5fa;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    font-family: var(--font);
+    background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+    color: var(--text);
+  }
+  h1 { margin: 0; font-size: 28px; }
+  h2 { margin: 24px 0 12px; font-size: 20px; color: var(--accent); }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-2);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .card h3 {
+    margin: 0 0 8px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .temp { font-size: 26px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .horizons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+    text-align: center;
+  }
+  .horizon { background: var(--accent-soft); border-radius: 8px; padding: 6px 4px; }
+  .horizon .label { font-size: 11px; color: var(--muted); }
+  .horizon .value { font-size: 15px; font-weight: 600; color: var(--accent); }
+  .rain-bar {
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .rain-bar-fill { height: 100%; background: var(--rain); }
+  .rain-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .status-dot.ok { background: var(--good); }
+  .status-dot.warn { background: var(--warn); }
+  .status-dot.bad { background: var(--bad); }
+  .chart-wrap { position: relative; height: 260px; }
+  .performance {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .metric { background: var(--panel); padding: 12px; border-radius: 8px; }
+  .metric .k { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .metric .v { font-size: 22px; font-weight: 600; color: var(--accent); }
+  .hourly-chart { background: var(--panel); border-radius: 12px; padding: 16px; }
+  .dropdown { margin: 12px 0; }
+  select {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--panel-2);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+  footer { text-align: center; margin-top: 32px; color: var(--muted); font-size: 12px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>🌍 RustWeatherML — Live Dashboard</h1>
+<div class="meta" id="meta">Loading latest prediction...</div>
+
+<h2>City Summary</h2>
+<div class="grid" id="cityGrid"></div>
+
+<h2>Hourly Forecast (next 24 h)</h2>
+<div class="hourly-chart">
+  <div class="dropdown">
+    Select city: <select id="citySelect"></select>
+  </div>
+  <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
+</div>
+
+<h2>Drift Monitor (last 14 days)</h2>
+<div class="hourly-chart">
+  <div class="chart-wrap"><canvas id="driftChart"></canvas></div>
+</div>
+
+<h2>Model Performance</h2>
+<div class="performance" id="perfBlock"></div>
+
+<footer>
+  Powered by <strong>RustWeatherML</strong>.
+  Predictions produced by Notebook 05 trained models (Ridge α=10) + Open-Meteo NWP.
+  <br>
+  Data sources: <code>data/predictions/YYYY-MM-DD.json</code> · <code>data/monitoring_history/YYYY-MM-DD.json</code>
+</footer>
+
+<script>
+(async function () {
+  const today = new Date().toISOString().slice(0, 10);
+  // Try today, then yesterday, then an explicit file list.
+  const candidates = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    candidates.push(`../../data/predictions/${d}.json`);
+  }
+
+  async function fetchFirst(urls) {
+    for (const u of urls) {
+      try {
+        const r = await fetch(u);
+        if (r.ok) return { url: u, data: await r.json() };
+      } catch (e) { /* ignore */ }
+    }
+    return null;
+  }
+
+  async function fetchHistory() {
+    const out = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      try {
+        const r = await fetch(`../../data/monitoring_history/${d}.json`);
+        if (r.ok) out.push({ date: d, data: await r.json() });
+      } catch (e) { /* ignore */ }
+    }
+    return out;
+  }
+
+  const latest = await fetchFirst(candidates);
+  if (!latest) {
+    document.getElementById('meta').textContent =
+      'No prediction files found. Run `./target/release/daily_predictions` first.';
+    return;
+  }
+  const report = latest.data;
+
+  document.getElementById('meta').textContent =
+    `Source: ${latest.url} · generated ${report.generated_at_utc} · ${report.n_successful}/${report.n_cities} cities · contract v${report.model_contract_version}`;
+
+  // City cards
+  const grid = document.getElementById('cityGrid');
+  grid.innerHTML = '';
+  for (const cf of report.cities) {
+    const rainPct = Math.round(cf.rain_next_24h.probability * 100);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <h3>${cf.flag} ${cf.city} <span class="sub">${cf.climate_zone}</span></h3>
+      <div class="temp">${cf.current.temperature_c.toFixed(1)}°C</div>
+      <div class="sub">${cf.current.weather_condition} · ${cf.current.humidity_pct.toFixed(0)}% RH · ${cf.current.windspeed_kmh.toFixed(0)} km/h wind</div>
+      <div class="sub">${cf.reference_local_time} local time</div>
+      <div class="horizons">
+        <div class="horizon"><div class="label">+24h</div><div class="value">${cf.multi_horizon.t_plus_24h.temperature_c.toFixed(1)}°</div></div>
+        <div class="horizon"><div class="label">+48h</div><div class="value">${cf.multi_horizon.t_plus_48h.temperature_c.toFixed(1)}°</div></div>
+        <div class="horizon"><div class="label">+72h</div><div class="value">${cf.multi_horizon.t_plus_72h.temperature_c.toFixed(1)}°</div></div>
+      </div>
+      <div class="rain-bar"><div class="rain-bar-fill" style="width:${rainPct}%"></div></div>
+      <div class="rain-label">Rain next 24 h: <strong>${rainPct}%</strong> · ${cf.rain_next_24h.n_hours_with_rain}h with precip · total ${cf.rain_next_24h.total_precip_mm.toFixed(1)} mm</div>
+    `;
+    grid.appendChild(card);
+  }
+
+  // City selector + hourly chart
+  const sel = document.getElementById('citySelect');
+  sel.innerHTML = report.cities.map(c => `<option>${c.city}</option>`).join('');
+
+  const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+  let hourlyChart;
+
+  function plotCity(name) {
+    const cf = report.cities.find(c => c.city === name);
+    if (!cf) return;
+    const labels = cf.hourly.map(h => h.local_time.slice(11));
+    const temps = cf.hourly.map(h => h.temperature_c);
+    const rains = cf.hourly.map(h => h.rain_probability * 100);
+    if (hourlyChart) hourlyChart.destroy();
+    hourlyChart = new Chart(hourlyCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Temperature (°C)',
+            data: temps,
+            yAxisID: 'temp',
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56,189,248,0.2)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+          },
+          {
+            label: 'Rain probability (%)',
+            data: rains,
+            yAxisID: 'rain',
+            borderColor: '#60a5fa',
+            borderDash: [4, 4],
+            backgroundColor: 'rgba(96,165,250,0.15)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 2,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          temp: { position: 'left', title: { display: true, text: '°C', color: '#94a3b8' } },
+          rain: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '% rain', color: '#94a3b8' } },
+          x: { ticks: { color: '#94a3b8' } }
+        },
+        plugins: { legend: { labels: { color: '#e2e8f0' } } }
+      }
+    });
+  }
+  sel.addEventListener('change', () => plotCity(sel.value));
+  plotCity(report.cities[0].city);
+
+  // Drift history chart
+  const history = await fetchHistory();
+  const driftCtx = document.getElementById('driftChart').getContext('2d');
+  if (history.length > 0) {
+    const labels = history.map(h => h.date);
+    const maxPsi = history.map(h => h.data.max_psi);
+    new Chart(driftCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Max PSI (across monitored features)',
+          data: maxPsi,
+          borderColor: '#facc15',
+          backgroundColor: 'rgba(250,204,21,0.2)',
+          tension: 0.3,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, ticks: { color: '#94a3b8' } },
+          x: { ticks: { color: '#94a3b8' } }
+        },
+        plugins: { legend: { labels: { color: '#e2e8f0' } } }
+      }
+    });
+  } else {
+    driftCtx.font = '14px sans-serif';
+    driftCtx.fillStyle = '#94a3b8';
+    driftCtx.fillText('No monitoring history yet. Run the binary at least once.', 20, 40);
+  }
+
+  // Performance cards
+  const meta = report.cities[0]?.meta;
+  if (meta) {
+    const perf = document.getElementById('perfBlock');
+    perf.innerHTML = `
+      <div class="metric"><div class="k">24 h model RMSE</div><div class="v">${meta.expected_rmse_24h_c.toFixed(2)} °C</div></div>
+      <div class="metric"><div class="k">48 h model RMSE</div><div class="v">${meta.expected_rmse_48h_c.toFixed(2)} °C</div></div>
+      <div class="metric"><div class="k">72 h model RMSE</div><div class="v">${meta.expected_rmse_72h_c.toFixed(2)} °C</div></div>
+      <div class="metric"><div class="k">24 h bias correction</div><div class="v">${meta.bias_correction_24h_c >= 0 ? '+' : ''}${meta.bias_correction_24h_c.toFixed(2)} °C</div></div>
+      <div class="metric"><div class="k">Rain model</div><div class="v" style="font-size:14px">${meta.rain_model}</div></div>
+      <div class="metric"><div class="k">Contract version</div><div class="v">${meta.model_version}</div></div>
+    `;
+  }
+})();
+</script>
+</body>
+</html>
