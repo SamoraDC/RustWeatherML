@@ -1,0 +1,82 @@
+{
+  "brier_climatology": 0.19382263269333694,
+  "brier_score": 0.09066822562358334,
+  "brier_skill_score": 0.5322103287749829,
+  "interpretation": "Given a vote count k / n_trees from the bagging ensemble, the bin containing k/n gives the expected observed frequency. Clip to [0,1].",
+  "n_bins": 10,
+  "n_trees": 30,
+  "reliability_bins": [
+    {
+      "bin_hi": 0.1,
+      "bin_lo": 0.0,
+      "count": 366,
+      "obs_freq": 0.0546448087431694,
+      "pred_mean": 0.016393442622950807
+    },
+    {
+      "bin_hi": 0.2,
+      "bin_lo": 0.1,
+      "count": 258,
+      "obs_freq": 0.12015503875968993,
+      "pred_mean": 0.1281653746770028
+    },
+    {
+      "bin_hi": 0.30000000000000004,
+      "bin_lo": 0.2,
+      "count": 194,
+      "obs_freq": 0.1134020618556701,
+      "pred_mean": 0.23522336769759486
+    },
+    {
+      "bin_hi": 0.4,
+      "bin_lo": 0.30000000000000004,
+      "count": 169,
+      "obs_freq": 0.1952662721893491,
+      "pred_mean": 0.3327416173570021
+    },
+    {
+      "bin_hi": 0.5,
+      "bin_lo": 0.4,
+      "count": 172,
+      "obs_freq": 0.3546511627906977,
+      "pred_mean": 0.43333333333333307
+    },
+    {
+      "bin_hi": 0.6000000000000001,
+      "bin_lo": 0.5,
+      "count": 177,
+      "obs_freq": 0.615819209039548,
+      "pred_mean": 0.5352165725047079
+    },
+    {
+      "bin_hi": 0.7000000000000001,
+      "bin_lo": 0.6000000000000001,
+      "count": 190,
+      "obs_freq": 0.7105263157894737,
+      "pred_mean": 0.6333333333333349
+    },
+    {
+      "bin_hi": 0.8,
+      "bin_lo": 0.7000000000000001,
+      "count": 222,
+      "obs_freq": 0.6531531531531531,
+      "pred_mean": 0.7366366366366363
+    },
+    {
+      "bin_hi": 0.9,
+      "bin_lo": 0.8,
+      "count": 378,
+      "obs_freq": 0.8068783068783069,
+      "pred_mean": 0.8373897707231068
+    },
+    {
+      "bin_hi": 1.0,
+      "bin_lo": 0.9,
+      "count": 2578,
+      "obs_freq": 0.9608223429014741,
+      "pred_mean": 0.9827385570209555
+    }
+  ],
+  "source": "Notebook 05 bagging ensemble",
+  "version": "1.0.0"
+}
