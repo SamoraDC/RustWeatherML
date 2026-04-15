@@ -121,13 +121,23 @@ fn main() -> Result<()> {
         report_data.n_successful, report_data.n_cities
     );
 
-    // Persist the rich JSON report.
+    // Persist the rich JSON report. We keep one hour-stamped snapshot
+    // per run plus a rolling `latest.json` that the dashboard reads.
     let predictions_dir = root.join(paths::PREDICTIONS_DIR);
     fs::create_dir_all(&predictions_dir)?;
-    let date = Utc::now().format("%Y-%m-%d").to_string();
-    let report_path = predictions_dir.join(format!("{date}.json"));
-    fs::write(&report_path, serde_json::to_string_pretty(&report_data)?)
+    let hour_stamp = Utc::now().format("%Y-%m-%dT%HZ").to_string();
+    let report_path = predictions_dir.join(format!("{hour_stamp}.json"));
+    let body = serde_json::to_string_pretty(&report_data)?;
+    fs::write(&report_path, &body)
         .with_context(|| format!("write {}", report_path.display()))?;
+    fs::write(root.join(paths::PREDICTIONS_LATEST), &body)
+        .with_context(|| "write predictions latest.json")?;
+    // Update predictions index.
+    let pred_index_path = root.join(paths::PREDICTIONS_INDEX);
+    match refresh_predictions_index(&predictions_dir, &pred_index_path) {
+        Ok(n) => println!("  Predictions index: {n} snapshots"),
+        Err(e) => println!("  (failed to refresh predictions index: {e})"),
+    }
     println!("Saved report {}", report_path.display());
 
     // Persist drift snapshot if we have one.
@@ -162,6 +172,24 @@ fn main() -> Result<()> {
 
     println!("\nDone.");
     Ok(())
+}
+
+/// Enumerate every prediction snapshot file and write an `index.json`.
+/// Returns the number of snapshots indexed.
+fn refresh_predictions_index(dir: &std::path::Path, index_path: &std::path::Path) -> Result<usize> {
+    let mut files: Vec<String> = fs::read_dir(dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".json") && n != "latest.json" && n != "index.json")
+        .collect();
+    files.sort();
+    let body = serde_json::to_string_pretty(&serde_json::json!({
+        "dir": "predictions",
+        "count": files.len(),
+        "files": files,
+    }))?;
+    fs::write(index_path, body)?;
+    Ok(files.len())
 }
 
 /// Re-run the pipeline once for the sole purpose of computing drift.
