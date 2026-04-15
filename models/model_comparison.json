@@ -1,0 +1,411 @@
+{
+  "best_classification": "RandomForestClassifier (n=50)",
+  "best_regression": "Ridge (alpha=1.0)",
+  "classification": [
+    {
+      "model": "Trivial-majority",
+      "test": {
+        "accuracy": 0.7096088435374149,
+        "balanced_accuracy": 0.5,
+        "confusion": {
+          "fn": 0,
+          "fp": 1366,
+          "tn": 0,
+          "tp": 3338
+        },
+        "f1": 0.8301417557821438,
+        "mcc": 0.0,
+        "precision": 0.7096088435374149,
+        "recall": 1.0
+      },
+      "val": {
+        "accuracy": 0.716468253968254,
+        "balanced_accuracy": 0.5,
+        "f1": 0.8348167841867993,
+        "mcc": 0.0,
+        "precision": 0.716468253968254,
+        "recall": 1.0
+      }
+    },
+    {
+      "model": "LogisticRegression",
+      "test": {
+        "accuracy": 0.8452380952380952,
+        "balanced_accuracy": 0.7836966753134191,
+        "confusion": {
+          "fn": 232,
+          "fp": 496,
+          "tn": 870,
+          "tp": 3106
+        },
+        "f1": 0.8951008645533141,
+        "mcc": 0.6081211474159983,
+        "precision": 0.8622987229317046,
+        "recall": 0.9304973037747154
+      },
+      "val": {
+        "accuracy": 0.8307539682539683,
+        "balanced_accuracy": 0.7916083912018308,
+        "f1": 0.8819050256126264,
+        "mcc": 0.583340187148695,
+        "precision": 0.8817829457364341,
+        "recall": 0.8820271392965937
+      }
+    },
+    {
+      "model": "KNN-Classifier (k=15)",
+      "test": {
+        "accuracy": 0.8054846938775511,
+        "balanced_accuracy": 0.7375215693636523,
+        "confusion": {
+          "fn": 335,
+          "fp": 580,
+          "tn": 786,
+          "tp": 3003
+        },
+        "f1": 0.8677936714347637,
+        "mcc": 0.5061454711050162,
+        "precision": 0.8381244766955066,
+        "recall": 0.8996405032953865
+      },
+      "val": {
+        "accuracy": 0.8299603174603175,
+        "balanced_accuracy": 0.7682201708914078,
+        "f1": 0.8847343644922665,
+        "mcc": 0.5651003286584058,
+        "precision": 0.8600941422594143,
+        "recall": 0.910828025477707
+      }
+    },
+    {
+      "model": "DecisionTreeClassifier (d=12)",
+      "test": {
+        "accuracy": 0.8520408163265306,
+        "balanced_accuracy": 0.8031944150809658,
+        "confusion": {
+          "fn": 268,
+          "fp": 428,
+          "tn": 938,
+          "tp": 3070
+        },
+        "f1": 0.898186073727326,
+        "mcc": 0.630428955845143,
+        "precision": 0.8776443682104059,
+        "recall": 0.9197124026363092
+      },
+      "val": {
+        "accuracy": 0.8813492063492063,
+        "balanced_accuracy": 0.8440429377694585,
+        "f1": 0.9182613449972663,
+        "mcc": 0.7028097255892539,
+        "precision": 0.906612685560054,
+        "recall": 0.9302132373303794
+      }
+    },
+    {
+      "model": "RandomForestClassifier (n=50)",
+      "test": {
+        "accuracy": 0.8745748299319728,
+        "balanced_accuracy": 0.8318304593188862,
+        "confusion": {
+          "fn": 221,
+          "fp": 369,
+          "tn": 997,
+          "tp": 3117
+        },
+        "f1": 0.9135404454865182,
+        "mcc": 0.6877449722476745,
+        "precision": 0.8941480206540448,
+        "recall": 0.9337926902336728
+      },
+      "val": {
+        "accuracy": 0.8791666666666667,
+        "balanced_accuracy": 0.8450569647715489,
+        "f1": 0.9163576431808818,
+        "mcc": 0.6991290310039268,
+        "precision": 0.908991825613079,
+        "recall": 0.9238438105787871
+      }
+    },
+    {
+      "model": "GaussianNB",
+      "test": {
+        "accuracy": 0.578656462585034,
+        "balanced_accuracy": 0.6925197841616174,
+        "confusion": {
+          "fn": 1933,
+          "fp": 49,
+          "tn": 1317,
+          "tp": 1405
+        },
+        "f1": 0.5863939899833055,
+        "mcc": 0.3782247930009521,
+        "precision": 0.9662998624484181,
+        "recall": 0.42091072498502097
+      },
+      "val": {
+        "accuracy": 0.6035714285714285,
+        "balanced_accuracy": 0.7106595797500019,
+        "f1": 0.626122754491018,
+        "mcc": 0.3997833371767179,
+        "precision": 0.9653779572994806,
+        "recall": 0.4633065632788701
+      }
+    }
+  ],
+  "feature_names": [
+    "latitude",
+    "longitude",
+    "elevation_m",
+    "temperature_2m",
+    "dewpoint_2m",
+    "rain",
+    "snowfall",
+    "windspeed_10m",
+    "windgusts_10m",
+    "winddirection_10m",
+    "pressure_msl",
+    "surface_pressure",
+    "cloudcover",
+    "shortwave_radiation",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "month_sin",
+    "month_cos",
+    "doy_sin",
+    "e_sat_T",
+    "e_actual",
+    "vpd",
+    "lcl_height_m",
+    "u_wind",
+    "v_wind",
+    "gust_excess",
+    "log_windspeed",
+    "cos_solar_zenith",
+    "clear_sky_radiation",
+    "is_daytime",
+    "clearness_index",
+    "temp_lag3h",
+    "temp_lag6h",
+    "temp_lag12h",
+    "temp_lag24h",
+    "temp_lag48h",
+    "td_lag24h",
+    "pres_lag6h",
+    "pres_lag12h",
+    "pres_lag24h",
+    "wind_lag1h",
+    "wind_lag6h",
+    "wind_lag24h",
+    "rh_lag1h",
+    "rh_lag6h",
+    "rh_lag24h",
+    "precip_lag1h",
+    "precip_lag3h",
+    "precip_lag6h",
+    "temp_change_1h",
+    "temp_change_3h",
+    "temp_change_6h",
+    "temp_change_24h",
+    "pressure_change_1h",
+    "pressure_change_3h",
+    "pressure_change_6h",
+    "pressure_change_24h",
+    "dewpoint_change_1h",
+    "dewpoint_change_6h",
+    "rh_change_1h",
+    "wind_change_1h",
+    "temp_roll24_mean",
+    "temp_roll24_std",
+    "pres_roll24_min",
+    "pres_roll24_max",
+    "precip_roll24_sum",
+    "interact_wind_ddep",
+    "interact_wind_vpd",
+    "abs_latitude",
+    "climate_Aw",
+    "climate_BWh",
+    "climate_Cfa",
+    "climate_Cfb",
+    "climate_Csb",
+    "climate_Cwa",
+    "climate_Dfa",
+    "climate_Dfb",
+    "log1p_precipitation"
+  ],
+  "n_features": 80,
+  "regression": [
+    {
+      "model": "Persistence-now",
+      "test": {
+        "mae": 2.515710034013612,
+        "mape": 26.86206596802866,
+        "mbe": -0.7114158163265295,
+        "r2": 0.8350031872675672,
+        "rmse": 3.7603787780517215
+      },
+      "val": {
+        "mae": 1.7462301587301687,
+        "mape": 25.944786922798695,
+        "mbe": -0.04055555555555556,
+        "r2": 0.9402958537752417,
+        "rmse": 2.4152261716695285
+      }
+    },
+    {
+      "model": "Persistence-24h",
+      "test": {
+        "mae": 2.962117346938779,
+        "mape": 32.45303135835915,
+        "mbe": -1.099234693877553,
+        "r2": 0.8060856017444156,
+        "rmse": 4.076606982503447
+      },
+      "val": {
+        "mae": 2.317757936507942,
+        "mape": 37.86871400798633,
+        "mbe": -0.09751984126984097,
+        "r2": 0.8866135369242277,
+        "rmse": 3.3284049876637245
+      }
+    },
+    {
+      "model": "Climatology(city,hour)",
+      "test": {
+        "mae": 5.479162268355633,
+        "mape": 74.77584670484937,
+        "mbe": -0.47456090194698547,
+        "r2": 0.4181932086813094,
+        "rmse": 7.061276356250488
+      },
+      "val": {
+        "mae": 6.086097769567607,
+        "mape": 96.77132605180968,
+        "mbe": 0.2205127941981389,
+        "r2": 0.32344430457088014,
+        "rmse": 8.130314344713296
+      }
+    },
+    {
+      "model": "OLS LinearRegression",
+      "test": {
+        "mae": 2.4332455022839325,
+        "mape": 24.813234385474892,
+        "mbe": -0.6876569564461276,
+        "r2": 0.854355329748181,
+        "rmse": 3.5329794707452047
+      },
+      "val": {
+        "mae": 1.87499035063825,
+        "mape": 26.74658120125876,
+        "mbe": 0.06528461772701716,
+        "r2": 0.9353690800531961,
+        "rmse": 2.5129030230453764
+      }
+    },
+    {
+      "model": "Ridge (alpha=1.0)",
+      "test": {
+        "mae": 2.4321486339739353,
+        "mape": 24.84218455332324,
+        "mbe": -0.6877667601220508,
+        "r2": 0.8546519803771673,
+        "rmse": 3.5293796314931627
+      },
+      "val": {
+        "mae": 1.8742612020257938,
+        "mape": 26.766009717378626,
+        "mbe": 0.06513475336949384,
+        "r2": 0.9354521299480811,
+        "rmse": 2.5112879801354033
+      }
+    },
+    {
+      "model": "Lasso (alpha=0.1)",
+      "test": {
+        "mae": 2.4263291709685757,
+        "mape": 24.347701504883418,
+        "mbe": -0.7711691526210956,
+        "r2": 0.8489833733287779,
+        "rmse": 3.597544693822609
+      },
+      "val": {
+        "mae": 1.7396051828400594,
+        "mape": 25.03105311942387,
+        "mbe": 0.06513615662506979,
+        "r2": 0.9418796488683057,
+        "rmse": 2.382976034440833
+      }
+    },
+    {
+      "model": "KNN (k=15)",
+      "test": {
+        "mae": 2.7982142857142818,
+        "mape": 31.055726042651102,
+        "mbe": -0.46206916099773326,
+        "r2": 0.8147912451369488,
+        "rmse": 3.9840480862358048
+      },
+      "val": {
+        "mae": 2.3446785714285747,
+        "mape": 39.289227524777594,
+        "mbe": 0.5516732804232792,
+        "r2": 0.8966452068605729,
+        "rmse": 3.1777583679615944
+      }
+    },
+    {
+      "model": "DecisionTree (depth=12)",
+      "test": {
+        "mae": 2.8750497119752816,
+        "mape": 32.95921604922054,
+        "mbe": -0.5874818345760944,
+        "r2": 0.7949863741888623,
+        "rmse": 4.19165160827321
+      },
+      "val": {
+        "mae": 2.1565384076507614,
+        "mape": 33.285971737139306,
+        "mbe": 0.10494116765573526,
+        "r2": 0.9066664146490755,
+        "rmse": 3.019774647089857
+      }
+    },
+    {
+      "model": "RandomForest (n=50,d=15)",
+      "test": {
+        "mae": 2.4845049647892585,
+        "mape": 26.804121316301174,
+        "mbe": -0.6705007191280269,
+        "r2": 0.8443901647377758,
+        "rmse": 3.651845009322264
+      },
+      "val": {
+        "mae": 1.8051788400012045,
+        "mape": 26.787648602887877,
+        "mbe": -0.05820153942670948,
+        "r2": 0.9376726056614031,
+        "rmse": 2.4677152533454105
+      }
+    },
+    {
+      "model": "GradientBoosting (K=80,d=5,eta=0.1)",
+      "test": {
+        "mae": 2.4565225254867826,
+        "mape": 24.94957773408435,
+        "mbe": -0.6992735813489457,
+        "r2": 0.8454165242199322,
+        "rmse": 3.6397818046402644
+      },
+      "val": {
+        "mae": 1.737305962323827,
+        "mape": 24.83711431744227,
+        "mbe": -0.018396521233185695,
+        "r2": 0.9423773528747607,
+        "rmse": 2.372750986837762
+      }
+    }
+  ]
+}
