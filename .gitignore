@@ -53,3 +53,13 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Tetrad - local database and cache
+.tetrad/
+next-steps.txt
+tetrad.toml
+tetrad.db
+
+docs/
+
+.claude
