@@ -1,9 +1,12 @@
-name: Daily Weather Predictions
+name: Weather Predictions (every 3 h)
 
 on:
   schedule:
-    # Runs every day at 06:00 UTC.
-    - cron: '0 6 * * *'
+    # Runs at 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 UTC.
+    # That's 8 runs/day × 14 cities = 112 API calls/day (well within the
+    # Open-Meteo 10k/day free tier) and ~25–40 min of CI runner time per
+    # day (within the 2000 min/month free tier).
+    - cron: '0 */3 * * *'
   # Allow manual runs from the Actions tab.
   workflow_dispatch:
 
@@ -11,7 +14,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: daily-predictions
+  # We serialize runs so two cron fires do not race on the commit step.
+  group: weather-predictions
   cancel-in-progress: false
 
 env:
@@ -87,6 +91,9 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "daily: weather predictions $(date -u +%F) [ci skip]"
+            STAMP=$(date -u +%Y-%m-%dT%HZ)
+            git commit -m "weather: predictions run ${STAMP} [ci skip]"
+            # Rebase in case a concurrent manual dispatch pushed first.
+            git pull --rebase --autostash origin ${GITHUB_REF#refs/heads/} || true
             git push
           fi
