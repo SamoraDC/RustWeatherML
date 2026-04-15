@@ -6,26 +6,52 @@ A production-grade machine learning system for weather prediction built entirely
 
 ## 🌍 Live Weather Predictions
 
-> Auto-updated daily at 06:00 UTC | Last run: *Pending first deployment*
+> Auto-updated daily at 06:00 UTC | Last run: 2026-04-15 11:55 UTC
 
 ### 24-Hour, 48-Hour & 72-Hour Forecast
 
 | City | Country | Current | +24h | +48h | +72h | Rain % | Confidence |
 |------|---------|---------|------|------|------|--------|------------|
-| São Paulo | 🇧🇷 | --°C | --°C | --°C | --°C | --% | -- |
-| Rio de Janeiro | 🇧🇷 | --°C | --°C | --°C | --°C | --% | -- |
-| São José dos Campos | 🇧🇷 | --°C | --°C | --°C | --°C | --% | -- |
-| Campinas | 🇧🇷 | --°C | --°C | --°C | --°C | --% | -- |
-| New York | 🇺🇸 | --°C | --°C | --°C | --°C | --% | -- |
-| Los Angeles | 🇺🇸 | --°C | --°C | --°C | --°C | --% | -- |
-| London | 🇬🇧 | --°C | --°C | --°C | --°C | --% | -- |
-| Berlin | 🇩🇪 | --°C | --°C | --°C | --°C | --% | -- |
-| Oslo | 🇳🇴 | --°C | --°C | --°C | --°C | --% | -- |
-| Tokyo | 🇯🇵 | --°C | --°C | --°C | --°C | --% | -- |
-| Shanghai | 🇨🇳 | --°C | --°C | --°C | --°C | --% | -- |
-| Chongqing | 🇨🇳 | --°C | --°C | --°C | --°C | --% | -- |
-| Nanjing | 🇨🇳 | --°C | --°C | --°C | --°C | --% | -- |
-| Dubai | 🇦🇪 | --°C | --°C | --°C | --°C | --% | -- |
+| Sao Paulo | 🇧🇷 | +18.3°C | +19.0°C | +19.6°C | +21.9°C |  85% | ±3.4°C |
+| Rio de Janeiro | 🇧🇷 | +22.1°C | +22.8°C | +23.0°C | +22.7°C |  85% | ±3.4°C |
+| Sao Jose dos Campos | 🇧🇷 | +18.0°C | +18.4°C | +18.5°C | +17.6°C |  15% | ±3.4°C |
+| Campinas | 🇧🇷 | +18.8°C | +19.5°C | +17.6°C | +19.6°C |  85% | ±3.4°C |
+| New York | 🇺🇸 | +24.5°C | +21.2°C | +24.1°C | +19.6°C |  85% | ±3.4°C |
+| Los Angeles | 🇺🇸 | +14.6°C | +16.1°C | +16.7°C | +20.8°C |  15% | ±3.4°C |
+| London | 🇬🇧 | +14.5°C | +14.4°C | +12.5°C | +13.2°C |  85% | ±3.4°C |
+| Berlin | 🇩🇪 | +9.4°C | +12.0°C | +15.3°C | +12.4°C |  85% | ±3.4°C |
+| Oslo | 🇳🇴 | +8.7°C | +9.5°C | +8.9°C | +7.2°C |  85% | ±3.4°C |
+| Tokyo | 🇯🇵 | +14.3°C | +15.7°C | +10.4°C | +11.5°C |  85% | ±3.4°C |
+| Shanghai | 🇨🇳 | +15.3°C | +15.8°C | +16.0°C | +15.4°C |  85% | ±3.4°C |
+| Chongqing | 🇨🇳 | +17.3°C | +18.5°C | +18.6°C | +20.8°C |  85% | ±3.4°C |
+| Nanjing | 🇨🇳 | +16.3°C | +16.5°C | +16.6°C | +19.0°C |  85% | ±3.4°C |
+| Dubai | 🇦🇪 | +24.3°C | +24.9°C | +23.3°C | +24.1°C |  85% | ±3.4°C |
+
+> **Source of each horizon.** `+24h` comes from the Ridge (alpha=10) model we trained in Notebook 05 (post-hoc bias-corrected). `+48h` and `+72h` are taken directly from Open-Meteo's own NWP forecast, since we did not train dedicated models for those horizons. `Rain %` is the rain probability of the RandomForest classifier (high band 85% / low band 15% via the reliability curve in Nb05). `Confidence` is ±1 sigma = ±RMSE on the held-out test.
+
+### Model Performance (held-out test set)
+
+| Metric | Value |
+|--------|-------|
+| Model | Ridge (alpha=10) |
+| Test RMSE (24 h temperature) | 3.41 °C |
+| 95 % CI of RMSE | [3.32, 3.50] °C |
+| Skill vs persistence-24 h | +0.264 |
+| Post-hoc bias correction  | +0.68 °C |
+| Successful cities         | 14 / 14 |
+
+
+### Model Performance (held-out test set)
+
+| Metric | Value |
+|--------|-------|
+| Model | Ridge (alpha=10) |
+| Test RMSE (24 h temperature) | 3.41 °C |
+| 95 % CI of RMSE | [3.32, 3.50] °C |
+| Skill vs persistence-24 h | +0.264 |
+| Post-hoc bias correction  | +0.68 °C |
+| Successful cities         | 14 / 14 |
+
 
 ### Model Performance (Last 7 Days)
 
