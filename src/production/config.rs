@@ -151,14 +151,23 @@ pub const CLIMATE_ZONES: [&str; 8] =
 
 /// Standard paths (relative to the project root) for production artifacts.
 pub mod paths {
-    pub const FEATURES_SCHEMA: &str = "models/features_schema.json";
-    pub const SCALER: &str           = "models/scaler.json";
-    pub const RIDGE_BIN: &str        = "models/ridge_model.bin";
-    pub const RIDGE_MANUAL: &str     = "models/ridge_manual.json";
-    pub const RAIN_RF_BIN: &str      = "models/rain_rf_model.bin";
-    pub const CLIMATOLOGY: &str      = "models/climatology.json";
-    pub const CONTRACT: &str         = "models/production_contract.json";
-    pub const GOLDEN_TEST: &str      = "models/golden_test.json";
-    pub const PREDICTIONS_DIR: &str  = "data/predictions";
-    pub const README: &str           = "README.md";
+    pub const FEATURES_SCHEMA: &str     = "models/features_schema.json";
+    pub const SCALER: &str              = "models/scaler.json";
+    pub const RIDGE_BIN: &str           = "models/ridge_model.bin";
+    pub const RIDGE_MANUAL: &str        = "models/ridge_manual.json";
+    pub const RIDGE_48H_BIN: &str       = "models/ridge_48h_model.bin";
+    pub const RIDGE_48H_MANUAL: &str    = "models/ridge_48h_manual.json";
+    pub const RIDGE_72H_BIN: &str       = "models/ridge_72h_model.bin";
+    pub const RIDGE_72H_MANUAL: &str    = "models/ridge_72h_manual.json";
+    pub const RAIN_RF_BIN: &str         = "models/rain_rf_model.bin";
+    pub const RAIN_BAGGING_BIN: &str    = "models/rain_bagging_ensemble.bin";
+    pub const RAIN_CALIBRATION: &str    = "models/rain_calibration.json";
+    pub const CLIMATOLOGY: &str         = "models/climatology.json";
+    pub const CONTRACT: &str            = "models/production_contract.json";
+    pub const GOLDEN_TEST: &str         = "models/golden_test.json";
+    pub const DRIFT_REFERENCE: &str     = "models/drift_reference.json";
+    pub const PREDICTIONS_DIR: &str     = "data/predictions";
+    pub const MONITORING_HISTORY_DIR: &str = "data/monitoring_history";
+    pub const DASHBOARD_DIR: &str       = "docs/dashboard";
+    pub const README: &str              = "README.md";
 }
