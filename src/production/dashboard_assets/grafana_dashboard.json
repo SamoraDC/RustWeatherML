@@ -1,0 +1,127 @@
+{
+  "$schema": "https://schemas.grafana.com/dashboard/v9.json",
+  "title": "RustWeatherML — Daily Predictions",
+  "description": "RustWeatherML daily predictions and drift monitor. Data source: JSON files under data/predictions/ and data/monitoring_history/ consumed via the Infinity plugin (yesoreyeram-infinity-datasource).",
+  "tags": ["rust-weather-ml", "weather", "ml", "drift"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1h",
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "# RustWeatherML — Live Predictions\n\nThis dashboard consumes the daily JSON reports emitted by `daily_predictions` binary.\n\n- **Summary**: most recent `data/predictions/YYYY-MM-DD.json`\n- **Drift**: last 14 days of `data/monitoring_history/YYYY-MM-DD.json`\n\nConfigure the Infinity datasource to read from `/<repo>/data/predictions/` and `/<repo>/data/monitoring_history/`. See `docs/dashboard/README.md` for setup.\n"
+      }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "City forecasts",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "rwml-infinity" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 3 },
+      "targets": [
+        {
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "data/predictions/latest.json",
+          "url_options": { "method": "GET" },
+          "root_selector": "cities",
+          "columns": [
+            { "text": "City", "selector": "city", "type": "string" },
+            { "text": "Flag", "selector": "flag", "type": "string" },
+            { "text": "Local time", "selector": "reference_local_time", "type": "string" },
+            { "text": "Now °C", "selector": "current.temperature_c", "type": "number" },
+            { "text": "+24h °C", "selector": "multi_horizon.t_plus_24h.temperature_c", "type": "number" },
+            { "text": "+48h °C", "selector": "multi_horizon.t_plus_48h.temperature_c", "type": "number" },
+            { "text": "+72h °C", "selector": "multi_horizon.t_plus_72h.temperature_c", "type": "number" },
+            { "text": "Rain 24h %", "selector": "rain_next_24h.probability", "type": "number" }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "center" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Rain 24h %" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "custom.displayMode", "value": "gradient-gauge" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 0.3 },
+                { "color": "red", "value": 0.7 }
+              ]}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Max PSI over time",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "rwml-infinity" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "type": "json",
+          "source": "url",
+          "format": "timeseries",
+          "url": "data/monitoring_history/all.json",
+          "url_options": { "method": "GET" },
+          "columns": [
+            { "text": "time", "selector": "timestamp_utc", "type": "timestamp" },
+            { "text": "max_psi", "selector": "max_psi", "type": "number" }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "24 h forecast RMSE vs baseline",
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "rwml-infinity" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "targets": [
+        {
+          "type": "json",
+          "source": "inline",
+          "format": "table",
+          "data": "[{\"model\":\"Ridge 24h\",\"rmse\":3.53},{\"model\":\"Ridge 48h\",\"rmse\":4.46},{\"model\":\"Ridge 72h\",\"rmse\":5.07},{\"model\":\"Persistence-24h\",\"rmse\":3.97}]",
+          "columns": [
+            { "text": "model", "selector": "model", "type": "string" },
+            { "text": "rmse", "selector": "rmse", "type": "number" }
+          ]
+        }
+      ]
+    }
+  ],
+  "annotations": { "list": [] },
+  "templating": { "list": [] },
+  "time": { "from": "now-14d", "to": "now" }
+}
