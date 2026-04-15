@@ -1,0 +1,109 @@
+{
+  "current_rows": 5712,
+  "drift_features": [
+    {
+      "drift": false,
+      "feature": "temperature_2m",
+      "jsd": 0.008299940437126663,
+      "ks": 0.05882061157796453,
+      "psi": 0.04618337063348143,
+      "wasserstein_1": 1.2394999999999994
+    },
+    {
+      "drift": false,
+      "feature": "dewpoint_2m",
+      "jsd": 0.01047365149286977,
+      "ks": 0.049763655462184864,
+      "psi": 0.058310112218278205,
+      "wasserstein_1": 0.9315000000000003
+    },
+    {
+      "drift": false,
+      "feature": "relativehumidity_2m",
+      "jsd": 0.00485714315519361,
+      "ks": 0.06054213352007476,
+      "psi": 0.02703781111657709,
+      "wasserstein_1": 2.62
+    },
+    {
+      "drift": false,
+      "feature": "pressure_msl",
+      "jsd": 0.009557230810704309,
+      "ks": 0.06259337068160598,
+      "psi": 0.05328761353706192,
+      "wasserstein_1": 1.6255000000000006
+    },
+    {
+      "drift": false,
+      "feature": "windspeed_10m",
+      "jsd": 0.0005222316312591382,
+      "ks": 0.017795868347338928,
+      "psi": 0.002896641484782426,
+      "wasserstein_1": 0.21899999999999994
+    },
+    {
+      "drift": false,
+      "feature": "cloudcover",
+      "jsd": 0.0061782612514125965,
+      "ks": 0.07879610177404295,
+      "psi": 0.03435290790232037,
+      "wasserstein_1": 7.19
+    },
+    {
+      "drift": false,
+      "feature": "precipitation",
+      "jsd": 0.002871614100470845,
+      "ks": 0.051887838468720804,
+      "psi": 0.016010942719045455,
+      "wasserstein_1": 0.059000000000000004
+    },
+    {
+      "drift": false,
+      "feature": "vpd",
+      "jsd": 0.0061368203113461185,
+      "ks": 0.074827847805789,
+      "psi": 0.03416324892546173,
+      "wasserstein_1": 1.4200092919551945
+    },
+    {
+      "drift": false,
+      "feature": "clearness_index",
+      "jsd": 0.0011967991242480495,
+      "ks": 0.03150385154061619,
+      "psi": 0.006641405534847298,
+      "wasserstein_1": 0.01957075088763855
+    },
+    {
+      "drift": false,
+      "feature": "temp_lag24h",
+      "jsd": 0.009171117683071658,
+      "ks": 0.05701348335944545,
+      "psi": 0.05111385424243329,
+      "wasserstein_1": 1.0170000000000001
+    }
+  ],
+  "max_psi": 0.058310112218278205,
+  "model": {
+    "alpha": 10.0,
+    "type": "Ridge"
+  },
+  "performance": {
+    "delta_rmse": 0.4118625216184828,
+    "relative_decay": 0.15971565720223233,
+    "window_rmse": [
+      2.5787235192413323,
+      4.387691567250793,
+      2.990586040859815
+    ]
+  },
+  "reference_rows": 20160,
+  "retraining": {
+    "days_since_training": 30,
+    "decay_threshold": 0.3,
+    "max_days_since_training": 90,
+    "psi_threshold": 0.2,
+    "reasons": [],
+    "should_retrain": false
+  },
+  "timestamp": "2026-04-15T11:05:48.954549667+00:00"
+}
