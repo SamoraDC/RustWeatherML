@@ -170,6 +170,7 @@
   ],
   "feature_order_is_standardized": true,
   "formula": "y_hat = intercept + sum_j (coefs[j] * (x[j] - means[j]) / stds[j])",
+  "horizon": "24h",
   "intercept": 17.153330254515538,
   "model_type": "ridge_regression"
 }
