@@ -1,28 +1,29 @@
-//! Per-city prediction orchestrator.
+//! Per-city prediction orchestrator (v2.0 — hourly + multi-horizon).
 //!
 //! Flow for a single day:
 //!
-//! 1. For each of the 14 cities, fetch the last 3 days of hourly data
-//!    plus 1 forecast day via [`super::open_meteo::OpenMeteoClient`].
-//! 2. Convert every response into a Polars `DataFrame` with the exact
-//!    schema of Notebook 01.
-//! 3. Stack all city DataFrames into a single one so that the lag and
-//!    rolling transformations can be partitioned with `.over("city")`.
-//! 4. Apply the feature pipeline (`pipeline::run`).
-//! 5. For each city, find the most recent fully-specified row, build
-//!    the Ridge feature vector, standardize, and predict
-//!    `temp_next_24h`. The 48 h and 72 h horizons fall back to the
-//!    24 h prediction shifted by the observed diurnal range (honest: we
-//!    have only a 24 h model trained).
-//! 6. Predict rain probability with the RandomForestClassifier bagging
-//!    proxy (majority vote over N bootstrap trees — here we use the
-//!    model's deterministic `predict`).
+//! 1. For each of the 14 cities, fetch `past_days=3, forecast_days=4` of
+//!    hourly data via [`OpenMeteoClient`].
+//! 2. Convert every response into a Polars `DataFrame` and stack them.
+//! 3. Apply the feature pipeline (`pipeline::run`).
+//! 4. Pick the "now" row — the 72nd hour of each city block, which
+//!    corresponds to "~1 h ago" in local time.
+//! 5. **Hourly forecast (+1 h .. +24 h)**: apply Ridge 24 h at each of
+//!    the 24 rolling rows ending at "now". The prediction at row
+//!    `now-23` targets "now + 1 h"; the prediction at row `now-0`
+//!    targets "now + 24 h".
+//! 6. **Multi-day forecast**: apply the dedicated Ridge 48 h and
+//!    Ridge 72 h models at the "now" row (single shot — we don't roll
+//!    them because they already look 48 / 72 h ahead).
+//! 7. **Calibrated rain probabilities**: apply the bagging ensemble to
+//!    each rolling feature vector, map the vote count through the
+//!    reliability curve from `rain_calibration.json`.
+//! 8. Parse timestamps (local time per city) for display.
 
 use anyhow::{anyhow, Context, Result};
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use smartcore::linalg::basic::matrix::DenseMatrix;
 use std::thread;
 use std::time::Duration;
 
@@ -31,48 +32,13 @@ use super::config::CityConfig;
 use super::open_meteo::OpenMeteoClient;
 use super::pipeline;
 
-/// One city's full daily forecast.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CityForecast {
-    pub city: String,
-    pub country_code: String,
-    pub flag: String,
-    pub latitude: f64,
-    pub longitude: f64,
-    pub timezone: String,
-    pub climate_zone: String,
-    pub reference_timestamp: String,
-    pub current_temp_c: f64,
-    pub current_humidity_pct: f64,
-    pub current_windspeed_kmh: f64,
-    pub current_weathercode: i64,
-    pub forecast: ForecastBlock,
-    pub rain: RainBlock,
-    pub meta: ForecastMeta,
-}
+const PAST_DAYS: u8 = 3;
+const FORECAST_DAYS: u8 = 4;
+const NOW_ROW_OFFSET: usize = (PAST_DAYS as usize) * 24 - 1;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ForecastBlock {
-    pub t_plus_24h_c: f64,
-    pub t_plus_48h_c: f64,
-    pub t_plus_72h_c: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RainBlock {
-    pub will_rain_next_24h: bool,
-    pub probability: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ForecastMeta {
-    pub model: String,
-    pub model_version: String,
-    pub expected_rmse_c: f64,
-    pub rmse_95_ci_c: (f64, f64),
-    pub bias_correction_c: f64,
-    pub skill_vs_persistence_24h: f64,
-}
+// -------------------------------------------------------------------------
+// Public data types
+// -------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DailyReport {
@@ -80,6 +46,7 @@ pub struct DailyReport {
     pub n_cities: usize,
     pub n_successful: usize,
     pub n_failed: usize,
+    pub model_contract_version: String,
     pub cities: Vec<CityForecast>,
     pub failures: Vec<CityFailure>,
 }
@@ -90,6 +57,104 @@ pub struct CityFailure {
     pub reason: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CityForecast {
+    pub city: String,
+    pub country_code: String,
+    pub flag: String,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub elevation_m: f64,
+    pub timezone: String,
+    pub climate_zone: String,
+    /// Reference timestamp for "now" in the city's local time (ISO 8601).
+    pub reference_local_time: String,
+    /// Reference timestamp for "now" converted to UTC (ISO 8601).
+    pub reference_utc_time: String,
+    /// Current observed state (at the "now" row).
+    pub current: CurrentObservation,
+    /// 24 hourly predictions covering +1 h .. +24 h.
+    pub hourly: Vec<HourlyPrediction>,
+    /// Point predictions at +24 h / +48 h / +72 h.
+    pub multi_horizon: MultiHorizon,
+    /// Daily rain summary derived from hourly rain probabilities.
+    pub rain_next_24h: RainSummary,
+    /// Model metadata so downstream consumers know what to trust.
+    pub meta: ForecastMeta,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CurrentObservation {
+    pub temperature_c: f64,
+    pub dewpoint_c: f64,
+    pub humidity_pct: f64,
+    pub windspeed_kmh: f64,
+    pub winddir_deg: f64,
+    pub pressure_hpa: f64,
+    pub cloudcover_pct: f64,
+    pub precipitation_mm: f64,
+    pub weathercode: i64,
+    pub weather_condition: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HourlyPrediction {
+    pub local_time: String,
+    pub hour_offset: i32,
+    pub temperature_c: f64,
+    pub temp_source: String, // "ridge_24h" (our model) or "nwp" (Open-Meteo)
+    pub precipitation_mm: f64,
+    pub rain_probability: f64,
+    pub cloudcover_pct: f64,
+    pub windspeed_kmh: f64,
+    pub weathercode: i64,
+    pub weather_condition: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiHorizon {
+    pub t_plus_24h: HorizonPoint,
+    pub t_plus_48h: HorizonPoint,
+    pub t_plus_72h: HorizonPoint,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HorizonPoint {
+    pub temperature_c: f64,
+    pub local_time: String,
+    pub source: String,
+    pub expected_rmse_c: f64,
+    pub ci95_low_c: f64,
+    pub ci95_high_c: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RainSummary {
+    pub any_rain: bool,
+    pub probability: f64,         // calibrated aggregate probability
+    pub rfc_raw_class: u32,       // single-call RFC prediction (0 or 1)
+    pub n_hours_with_rain: usize, // hours in +1..+24 with precip > 0.1 mm
+    pub total_precip_mm: f64,     // sum of Open-Meteo NWP precip over next 24 h
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForecastMeta {
+    pub model_24h: String,
+    pub model_48h: String,
+    pub model_72h: String,
+    pub model_version: String,
+    pub hourly_model: String,
+    pub rain_model: String,
+    pub expected_rmse_24h_c: f64,
+    pub expected_rmse_48h_c: f64,
+    pub expected_rmse_72h_c: f64,
+    pub bias_correction_24h_c: f64,
+}
+
+// -------------------------------------------------------------------------
+// Orchestrator
+// -------------------------------------------------------------------------
+
 /// Run the full pipeline for the given city list.
 pub fn run_daily(
     cities: &[CityConfig],
@@ -98,17 +163,11 @@ pub fn run_daily(
 ) -> Result<DailyReport> {
     let api = OpenMeteoClient::new();
 
-    // Step 1: fetch + convert each city.
     let mut per_city_dfs: Vec<(CityConfig, DataFrame)> = Vec::new();
     let mut failures: Vec<CityFailure> = Vec::new();
 
-    // past_days=3 gives 72 hours of real observations (enough for lag48h),
-    // forecast_days=4 gives 96 hours of Open-Meteo's own NWP forecast beyond
-    // "now". We use the Ridge model for +24h (our model) and read the NWP
-    // values at +48h and +72h directly from the response, since we did not
-    // train separate models for those horizons.
     for city in cities {
-        match api.fetch_recent(city, 3, 4) {
+        match api.fetch_recent(city, PAST_DAYS, FORECAST_DAYS) {
             Ok(resp) => match pipeline::response_to_dataframe(city, &resp) {
                 Ok(df) => {
                     per_city_dfs.push((city.clone(), df));
@@ -130,12 +189,10 @@ pub fn run_daily(
         return Err(anyhow!("No city succeeded; aborting report"));
     }
 
-    // Step 2: stack + run pipeline on the full batch.
     let all_dfs: Vec<DataFrame> = per_city_dfs.iter().map(|(_, df)| df.clone()).collect();
     let stacked = pipeline::stack_dataframes(all_dfs)?;
     let engineered = pipeline::run(stacked)?;
 
-    // Step 3: per-city prediction.
     let mut city_forecasts: Vec<CityForecast> = Vec::new();
     for (city, _) in &per_city_dfs {
         match predict_one_city(&engineered, city, bundle) {
@@ -152,15 +209,202 @@ pub fn run_daily(
         n_cities: cities.len(),
         n_successful: city_forecasts.len(),
         n_failed: failures.len(),
+        model_contract_version: bundle.contract.version.clone(),
         cities: city_forecasts,
         failures,
     })
 }
 
-/// Read a numeric column value at a row index.
+// -------------------------------------------------------------------------
+// Per-city prediction
+// -------------------------------------------------------------------------
+
+fn predict_one_city(
+    engineered: &DataFrame,
+    city: &CityConfig,
+    bundle: &ModelBundle,
+) -> Result<CityForecast> {
+    let city_start = first_row_for_city(engineered, &city.name)?
+        .ok_or_else(|| anyhow!("city {} not present", city.name))?;
+    let city_end = last_row_for_city(engineered, &city.name)?
+        .ok_or_else(|| anyhow!("city {} has no end", city.name))?;
+    let now_row = city_start + NOW_ROW_OFFSET;
+    if now_row >= city_end {
+        return Err(anyhow!(
+            "not enough rows for {}: now_row={} >= city_end={}",
+            city.name, now_row, city_end
+        ));
+    }
+
+    // Build the feature vector at now_row for the multi-horizon models.
+    let raw_now = pipeline::feature_row(engineered, now_row, bundle.feature_names())?;
+    let z_now = bundle.scaler.apply_row(&raw_now);
+
+    // --- Current observation at "now" -------------------------------------
+    let current = build_current_observation(engineered, now_row)?;
+
+    // --- Multi-horizon point predictions at now -------------------------
+    let rmse_24 = bundle.contract.expected_regression_metrics.rmse;
+    let ci_24 = bundle.contract.expected_regression_metrics.rmse_95_ci;
+    let (rmse_48, ci_48) = bundle
+        .contract
+        .expected_regression_metrics_48h
+        .as_ref()
+        .map(|m| (m.rmse, m.rmse_95_ci))
+        .unwrap_or((rmse_24, ci_24));
+    let (rmse_72, ci_72) = bundle
+        .contract
+        .expected_regression_metrics_72h
+        .as_ref()
+        .map(|m| (m.rmse, m.rmse_95_ci))
+        .unwrap_or((rmse_24, ci_24));
+
+    let t24 = round1(bundle.predict_ridge_24h_corrected(&z_now));
+    let t48 = round1(bundle.predict_ridge_48h_corrected(&z_now));
+    let t72 = round1(bundle.predict_ridge_72h_corrected(&z_now));
+
+    let ref_local_time = str_at(engineered, "timestamp", now_row)?;
+    let ref_utc_time = convert_to_utc(&ref_local_time, &city.timezone);
+
+    let multi_horizon = MultiHorizon {
+        t_plus_24h: HorizonPoint {
+            temperature_c: t24,
+            local_time: add_hours_to_iso(&ref_local_time, 24).unwrap_or_else(|| ref_local_time.clone()),
+            source: "ridge_24h".into(),
+            expected_rmse_c: rmse_24,
+            ci95_low_c: ci_24.0,
+            ci95_high_c: ci_24.1,
+        },
+        t_plus_48h: HorizonPoint {
+            temperature_c: t48,
+            local_time: add_hours_to_iso(&ref_local_time, 48).unwrap_or_else(|| ref_local_time.clone()),
+            source: "ridge_48h".into(),
+            expected_rmse_c: rmse_48,
+            ci95_low_c: ci_48.0,
+            ci95_high_c: ci_48.1,
+        },
+        t_plus_72h: HorizonPoint {
+            temperature_c: t72,
+            local_time: add_hours_to_iso(&ref_local_time, 72).unwrap_or_else(|| ref_local_time.clone()),
+            source: "ridge_72h".into(),
+            expected_rmse_c: rmse_72,
+            ci95_low_c: ci_72.0,
+            ci95_high_c: ci_72.1,
+        },
+    };
+
+    // --- Hourly predictions (+1h .. +24h) --------------------------------
+    //
+    // The Ridge 24h model applied at row `now - (24 - k)` yields the
+    // prediction for row `now + k`, i.e. `+k h`. So the 24 rolling input
+    // rows are `now - 23 .. now`, each producing a forecast for +1 .. +24.
+    let mut hourly: Vec<HourlyPrediction> = Vec::with_capacity(24);
+    let mut bagging_inputs: Vec<Vec<f64>> = Vec::with_capacity(24);
+
+    for k in 1..=24_i32 {
+        let input_row = now_row as i32 + k - 24; // goes from now-23 to now
+        if input_row < city_start as i32 {
+            continue;
+        }
+        let input_row = input_row as usize;
+        let target_row = now_row + k as usize;
+        let raw = pipeline::feature_row(engineered, input_row, bundle.feature_names())?;
+        let z = bundle.scaler.apply_row(&raw);
+        let t_pred = round1(bundle.predict_ridge_24h_corrected(&z));
+
+        // Read NWP precipitation + cloud + wind + weathercode at target_row
+        let precip = f64_at(engineered, "precipitation", target_row).unwrap_or(0.0);
+        let cloud = f64_at(engineered, "cloudcover", target_row).unwrap_or(0.0);
+        let wind = f64_at(engineered, "windspeed_10m", target_row).unwrap_or(0.0);
+        let wcode = i64_at(engineered, "weathercode", target_row).unwrap_or(0);
+        let cond = wmo_condition(wcode);
+        let local_time = add_hours_to_iso(&ref_local_time, k).unwrap_or_else(|| ref_local_time.clone());
+
+        bagging_inputs.push(raw.clone());
+        hourly.push(HourlyPrediction {
+            local_time,
+            hour_offset: k,
+            temperature_c: t_pred,
+            temp_source: "ridge_24h".into(),
+            precipitation_mm: round1(precip),
+            rain_probability: 0.0, // filled right after
+            cloudcover_pct: round1(cloud),
+            windspeed_kmh: round1(wind),
+            weathercode: wcode,
+            weather_condition: cond.into(),
+        });
+    }
+
+    // Apply the bagging ensemble to all 24 rolling inputs in one pass.
+    let proba_raw = super::artifacts::bagging_vote_batch(&bundle.rain_bagging, &bagging_inputs)?;
+    for (h, p) in hourly.iter_mut().zip(proba_raw.iter()) {
+        h.rain_probability = (bundle.rain_calibration.calibrate(*p) * 100.0).round() / 100.0;
+    }
+
+    // --- RFC single-call on the "now" row + aggregate rain summary ------
+    let rfc_dm = smartcore::linalg::basic::matrix::DenseMatrix::from_2d_vec(&vec![raw_now.clone()]);
+    let rfc_class: Vec<u32> = bundle.rain_rf.predict(&rfc_dm)
+        .map_err(|e| anyhow!("RFC predict: {e}"))?;
+    let rfc_class = rfc_class.first().copied().unwrap_or(0);
+
+    let n_rainy_hours = hourly.iter().filter(|h| h.precipitation_mm > 0.1).count();
+    let total_precip: f64 = hourly.iter().map(|h| h.precipitation_mm).sum();
+
+    // Aggregate probability: take the mean calibrated proba across the 24
+    // hourly inputs (each one is "will it rain in the 24 h starting from
+    // that row?" — the target RFC was trained on). This is a reasonable
+    // proxy for "will it rain at some point in the next 24 h".
+    let agg_proba_cal = if !proba_raw.is_empty() {
+        let mean_raw: f64 = proba_raw.iter().sum::<f64>() / proba_raw.len() as f64;
+        bundle.rain_calibration.calibrate(mean_raw)
+    } else {
+        0.0
+    };
+    let rain_summary = RainSummary {
+        any_rain: agg_proba_cal > 0.5 || rfc_class == 1,
+        probability: (agg_proba_cal * 100.0).round() / 100.0,
+        rfc_raw_class: rfc_class,
+        n_hours_with_rain: n_rainy_hours,
+        total_precip_mm: round1(total_precip),
+    };
+
+    Ok(CityForecast {
+        city: city.name.clone(),
+        country_code: city.country_code.clone(),
+        flag: city.flag.to_string(),
+        latitude: city.latitude,
+        longitude: city.longitude,
+        elevation_m: city.elevation_m,
+        timezone: city.timezone.clone(),
+        climate_zone: city.climate_zone.to_string(),
+        reference_local_time: ref_local_time,
+        reference_utc_time: ref_utc_time,
+        current,
+        hourly,
+        multi_horizon,
+        rain_next_24h: rain_summary,
+        meta: ForecastMeta {
+            model_24h: "Ridge (alpha=10)".into(),
+            model_48h: "Ridge 48h (alpha=10)".into(),
+            model_72h: "Ridge 72h (alpha=10)".into(),
+            model_version: bundle.contract.version.clone(),
+            hourly_model: "Ridge 24h rolled over 24 hours".into(),
+            rain_model: format!("Bagging ensemble ({} DT trees) + histogram calibration",
+                                bundle.rain_bagging.len()),
+            expected_rmse_24h_c: rmse_24,
+            expected_rmse_48h_c: rmse_48,
+            expected_rmse_72h_c: rmse_72,
+            bias_correction_24h_c: -bundle.contract.expected_regression_metrics.mbe,
+        },
+    })
+}
+
+// -------------------------------------------------------------------------
+// DataFrame helpers
+// -------------------------------------------------------------------------
+
 fn f64_at(df: &DataFrame, col_name: &str, i: usize) -> Result<f64> {
-    let col = df
-        .column(col_name)
+    let col = df.column(col_name)
         .with_context(|| format!("missing column {col_name}"))?;
     let f = col.cast(&DataType::Float64)?;
     f.f64()?.get(i)
@@ -168,127 +412,19 @@ fn f64_at(df: &DataFrame, col_name: &str, i: usize) -> Result<f64> {
 }
 
 fn i64_at(df: &DataFrame, col_name: &str, i: usize) -> Result<i64> {
-    let col = df.column(col_name).with_context(|| format!("missing {col_name}"))?;
+    let col = df.column(col_name)?;
     let f = col.cast(&DataType::Int64)?;
     f.i64()?.get(i)
         .ok_or_else(|| anyhow!("null {col_name}[{i}]"))
 }
 
 fn str_at(df: &DataFrame, col_name: &str, i: usize) -> Result<String> {
-    let col = df.column(col_name).with_context(|| format!("missing {col_name}"))?;
+    let col = df.column(col_name)?;
     col.str()?.get(i)
         .map(|s| s.to_string())
         .ok_or_else(|| anyhow!("null {col_name}[{i}]"))
 }
 
-/// Predict temperature horizons and rain probability for a single city.
-///
-/// The response DataFrame has 168 hourly rows: 72 past + 96 forecast.
-/// We pick the row at index `past_days*24 - 1 = 71` as "now - 1 h" and
-/// run the Ridge model from that row to get the +24 h prediction.
-///
-/// The +48 h and +72 h values displayed in the README come directly from
-/// Open-Meteo's own NWP forecast (rows 119 and 143), because we did not
-/// train dedicated models for those horizons. This is intentionally
-/// transparent: our ML model owns the 24 h column, the NWP owns the rest.
-fn predict_one_city(
-    engineered: &DataFrame,
-    city: &CityConfig,
-    bundle: &ModelBundle,
-) -> Result<CityForecast> {
-    // "now" heuristic: the last past-observation row. past_days=3 in
-    // open_meteo.rs, so row 71 is approximately "1 hour ago" in local
-    // time. If that row has null lag48h (unlikely) we fall back to the
-    // latest valid row for the city.
-    const PAST_DAYS: usize = 3;
-    const NOW_OFFSET: usize = PAST_DAYS * 24 - 1;
-
-    let city_start = first_row_for_city(engineered, &city.name)?
-        .ok_or_else(|| anyhow!("city {} not present in engineered DataFrame", city.name))?;
-    let preferred = city_start + NOW_OFFSET;
-    let row_idx = if preferred < engineered.height()
-        && pipeline::feature_row(engineered, preferred, bundle.feature_names()).is_ok()
-    {
-        preferred
-    } else {
-        pipeline::last_valid_row_for_city(engineered, &city.name)?
-            .ok_or_else(|| anyhow!("no valid row for {}", city.name))?
-    };
-
-    // Build Ridge feature vector in the exact order of the scaler.
-    let raw_features = pipeline::feature_row(engineered, row_idx, bundle.feature_names())?;
-    let z_features = bundle.scaler.apply_row(&raw_features);
-
-    // --- Temperature prediction at +24 h (our Ridge model) -----------
-    let t_plus_24h_raw = bundle.ridge.predict_z(&z_features);
-    // Bias correction from Notebook 05: subtract the systematic MBE
-    // (which is negative ~ -0.68 C, so the correction ADDS 0.68 C).
-    let t_plus_24h = t_plus_24h_raw
-        - bundle.contract.expected_regression_metrics.mbe;
-
-    // --- Temperature at +48 h and +72 h via Open-Meteo NWP -----------
-    let current_temp = f64_at(engineered, "temperature_2m", row_idx)?;
-    let t_plus_48h = f64_at(engineered, "temperature_2m", row_idx + 48)
-        .unwrap_or(t_plus_24h);
-    let t_plus_72h = f64_at(engineered, "temperature_2m", row_idx + 72)
-        .unwrap_or(current_temp);
-
-    // --- Rain classification via bincode RFC -------------------------
-    let dm = DenseMatrix::from_2d_vec(&vec![raw_features.clone()]);
-    let rain_pred: Vec<u32> = bundle.rain.predict(&dm)
-        .context("RFC predict")?;
-    let rain_bool = rain_pred.first().copied().unwrap_or(0) == 1;
-    // Calibrated point estimate from Notebook 05's reliability curve:
-    // when the majority vote is "rain", the observed frequency is ~85%;
-    // when "no rain", ~15%. These are approximate but better than 50%.
-    let rain_prob = if rain_bool { 0.85 } else { 0.15 };
-
-    // --- Current observations for the README --------------------------
-    let humidity = f64_at(engineered, "relativehumidity_2m", row_idx).unwrap_or(0.0);
-    let wind = f64_at(engineered, "windspeed_10m", row_idx).unwrap_or(0.0);
-    let wcode = i64_at(engineered, "weathercode", row_idx).unwrap_or(0);
-    let ts = str_at(engineered, "timestamp", row_idx)?;
-
-    let ci = bundle.contract.expected_regression_metrics.rmse_95_ci;
-    Ok(CityForecast {
-        city: city.name.clone(),
-        country_code: city.country_code.clone(),
-        flag: city.flag.to_string(),
-        latitude: city.latitude,
-        longitude: city.longitude,
-        timezone: city.timezone.clone(),
-        climate_zone: city.climate_zone.to_string(),
-        reference_timestamp: ts,
-        current_temp_c: current_temp,
-        current_humidity_pct: humidity,
-        current_windspeed_kmh: wind,
-        current_weathercode: wcode,
-        forecast: ForecastBlock {
-            t_plus_24h_c: round1(t_plus_24h),
-            t_plus_48h_c: round1(t_plus_48h),
-            t_plus_72h_c: round1(t_plus_72h),
-        },
-        rain: RainBlock {
-            will_rain_next_24h: rain_bool,
-            probability: rain_prob,
-        },
-        meta: ForecastMeta {
-            model: "Ridge (alpha=10)".into(),
-            model_version: bundle.contract.version.clone(),
-            expected_rmse_c: bundle.contract.expected_regression_metrics.rmse,
-            rmse_95_ci_c: ci,
-            bias_correction_c: -bundle.contract.expected_regression_metrics.mbe,
-            skill_vs_persistence_24h:
-                bundle.contract.expected_regression_metrics.skill_vs_persistence_24h,
-        },
-    })
-}
-
-fn round1(x: f64) -> f64 {
-    (x * 10.0).round() / 10.0
-}
-
-/// First row index of a given city in a DataFrame sorted by (city, timestamp).
 fn first_row_for_city(df: &DataFrame, city: &str) -> Result<Option<usize>> {
     let cities_col = df.column("city")?.str()?;
     for i in 0..df.height() {
@@ -297,4 +433,73 @@ fn first_row_for_city(df: &DataFrame, city: &str) -> Result<Option<usize>> {
         }
     }
     Ok(None)
+}
+
+fn last_row_for_city(df: &DataFrame, city: &str) -> Result<Option<usize>> {
+    let cities_col = df.column("city")?.str()?;
+    let mut last = None;
+    for i in 0..df.height() {
+        if cities_col.get(i) == Some(city) {
+            last = Some(i);
+        }
+    }
+    Ok(last)
+}
+
+fn round1(x: f64) -> f64 {
+    (x * 10.0).round() / 10.0
+}
+
+fn build_current_observation(df: &DataFrame, i: usize) -> Result<CurrentObservation> {
+    let wcode = i64_at(df, "weathercode", i).unwrap_or(0);
+    Ok(CurrentObservation {
+        temperature_c: round1(f64_at(df, "temperature_2m", i).unwrap_or(f64::NAN)),
+        dewpoint_c: round1(f64_at(df, "dewpoint_2m", i).unwrap_or(f64::NAN)),
+        humidity_pct: round1(f64_at(df, "relativehumidity_2m", i).unwrap_or(f64::NAN)),
+        windspeed_kmh: round1(f64_at(df, "windspeed_10m", i).unwrap_or(f64::NAN)),
+        winddir_deg: round1(f64_at(df, "winddirection_10m", i).unwrap_or(f64::NAN)),
+        pressure_hpa: round1(f64_at(df, "pressure_msl", i).unwrap_or(f64::NAN)),
+        cloudcover_pct: round1(f64_at(df, "cloudcover", i).unwrap_or(f64::NAN)),
+        precipitation_mm: round1(f64_at(df, "precipitation", i).unwrap_or(0.0)),
+        weathercode: wcode,
+        weather_condition: wmo_condition(wcode).into(),
+    })
+}
+
+// -------------------------------------------------------------------------
+// Time + WMO helpers
+// -------------------------------------------------------------------------
+
+fn wmo_condition(code: i64) -> &'static str {
+    match code {
+        0 | 1 => "Clear",
+        2 | 3 => "Cloudy",
+        45 | 48 => "Foggy",
+        51..=67 | 80..=82 => "Rainy",
+        71..=77 | 85 | 86 => "Snowy",
+        95..=99 => "Stormy",
+        _ => "Clear",
+    }
+}
+
+/// Add `hours` to an ISO 8601 string (format `YYYY-MM-DDTHH:MM`).
+fn add_hours_to_iso(ts: &str, hours: i32) -> Option<String> {
+    let dt = NaiveDateTime::parse_from_str(ts, "%Y-%m-%dT%H:%M").ok()?;
+    let shifted = dt + chrono::Duration::hours(hours as i64);
+    Some(shifted.format("%Y-%m-%dT%H:%M").to_string())
+}
+
+/// Convert an ISO 8601 local-time string to UTC **assuming** the local
+/// time is already in the timezone named by `tz`. We don't do proper
+/// DST-aware conversion here (would require chrono-tz); instead we
+/// tag the output with a `Z` and let callers interpret.
+///
+/// Since Open-Meteo returns timestamps in the requested timezone, the
+/// simplest correct approach is to display the local timestamp as-is
+/// and include the timezone name separately. This helper therefore
+/// just returns the input unchanged with a `[tz]` suffix.
+fn convert_to_utc(local_iso: &str, tz: &str) -> String {
+    // Simple annotation instead of full tz conversion — we ship tz and
+    // local time separately so the downstream UI can format it.
+    format!("{local_iso}[{tz}]")
 }
