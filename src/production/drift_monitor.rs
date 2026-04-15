@@ -184,19 +184,61 @@ pub fn compute_drift(df: &DataFrame, reference: &DriftReference) -> Result<Drift
     })
 }
 
-/// Persist the snapshot to `data/monitoring_history/YYYY-MM-DD.json`.
+/// Persist the snapshot to `data/monitoring_history/YYYY-MM-DDTHHZ.json`
+/// and also refresh `latest.json` + `index.json` so the dashboard and
+/// Grafana can enumerate the history deterministically without a
+/// directory listing.
 pub fn save_snapshot<P: AsRef<Path>>(root: P, snapshot: &DriftSnapshot) -> Result<PathBuf> {
     let dir = root.as_ref().join(paths::MONITORING_HISTORY_DIR);
     fs::create_dir_all(&dir)
         .with_context(|| format!("create {}", dir.display()))?;
-    let filename = format!(
-        "{}.json",
-        snapshot.timestamp_utc.chars().take(10).collect::<String>()
-    );
-    let path = dir.join(filename);
-    fs::write(&path, serde_json::to_string_pretty(snapshot)?)
+
+    // Hour-stamped filename from the snapshot timestamp (UTC, ISO 8601).
+    let stem = hour_stamp_from_iso(&snapshot.timestamp_utc);
+    let filename = format!("{stem}.json");
+    let path = dir.join(&filename);
+    let body = serde_json::to_string_pretty(snapshot)?;
+    fs::write(&path, &body)
         .with_context(|| format!("write {}", path.display()))?;
+
+    // latest.json — overwritten every run.
+    let latest_path = root.as_ref().join(paths::MONITORING_LATEST);
+    fs::write(&latest_path, &body)
+        .with_context(|| format!("write {}", latest_path.display()))?;
+
+    // index.json — sorted list of every history file for the dashboard.
+    refresh_index(&dir, &root.as_ref().join(paths::MONITORING_INDEX))?;
+
     Ok(path)
+}
+
+/// Convert an ISO-8601 timestamp like "2026-04-15T12:34:56+00:00" into
+/// the hour-stamped stem "2026-04-15T12Z".
+fn hour_stamp_from_iso(iso: &str) -> String {
+    // We just extract the date + hour from the first 13 characters and
+    // tag with Z.
+    let s: String = iso.chars().take(13).collect(); // "2026-04-15T12"
+    format!("{}Z", s)
+}
+
+/// Build a sorted list of all monitoring JSON files and write it to
+/// `index.json`. The dashboard uses this to iterate history without
+/// needing a file-system listing capability.
+fn refresh_index(dir: &Path, index_path: &Path) -> Result<()> {
+    let mut files: Vec<String> = fs::read_dir(dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".json") && n != "latest.json" && n != "index.json")
+        .collect();
+    files.sort();
+    let body = serde_json::to_string_pretty(&serde_json::json!({
+        "dir": dir.file_name().and_then(|s| s.to_str()).unwrap_or(""),
+        "count": files.len(),
+        "files": files,
+    }))?;
+    fs::write(index_path, body)
+        .with_context(|| format!("write {}", index_path.display()))?;
+    Ok(())
 }
 
 fn unique_cities(df: &DataFrame) -> Result<usize> {
