@@ -167,7 +167,11 @@ pub mod paths {
     pub const GOLDEN_TEST: &str         = "models/golden_test.json";
     pub const DRIFT_REFERENCE: &str     = "models/drift_reference.json";
     pub const PREDICTIONS_DIR: &str     = "data/predictions";
+    pub const PREDICTIONS_LATEST: &str  = "data/predictions/latest.json";
+    pub const PREDICTIONS_INDEX: &str   = "data/predictions/index.json";
     pub const MONITORING_HISTORY_DIR: &str = "data/monitoring_history";
+    pub const MONITORING_LATEST: &str   = "data/monitoring_history/latest.json";
+    pub const MONITORING_INDEX: &str    = "data/monitoring_history/index.json";
     pub const DASHBOARD_DIR: &str       = "docs/dashboard";
     pub const README: &str              = "README.md";
 }
