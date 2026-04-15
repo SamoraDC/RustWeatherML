@@ -104,7 +104,12 @@ pub struct HourlyPrediction {
     pub temperature_c: f64,
     pub temp_source: String, // "ridge_24h" (our model) or "nwp" (Open-Meteo)
     pub precipitation_mm: f64,
+    /// Final blended rain probability (NWP-dominant: α=0.9 NWP + 0.1 ML).
     pub rain_probability: f64,
+    /// ML-only rain probability from the bagging ensemble + histogram calibration.
+    pub rain_probability_model: f64,
+    /// NWP-only rain probability derived from Open-Meteo's precipitation forecast.
+    pub rain_probability_nwp: f64,
     pub cloudcover_pct: f64,
     pub windspeed_kmh: f64,
     pub weathercode: i64,
@@ -131,10 +136,21 @@ pub struct HorizonPoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RainSummary {
     pub any_rain: bool,
-    pub probability: f64,         // calibrated aggregate probability
-    pub rfc_raw_class: u32,       // single-call RFC prediction (0 or 1)
-    pub n_hours_with_rain: usize, // hours in +1..+24 with precip > 0.1 mm
-    pub total_precip_mm: f64,     // sum of Open-Meteo NWP precip over next 24 h
+    /// Final blended aggregate rain probability.
+    /// = 0.9 * nwp_probability + 0.1 * model_probability
+    pub probability: f64,
+    /// ML-only probability (the bagging-ensemble vote / 30, histogram-calibrated).
+    pub model_probability: f64,
+    /// NWP-only probability derived from the total precipitation over the next 24 h.
+    pub nwp_probability: f64,
+    /// Weight of the NWP component in the blend (currently fixed at 0.9).
+    pub blend_alpha_nwp: f64,
+    /// Single-call RFC class prediction (0 or 1) — diagnostic only.
+    pub rfc_raw_class: u32,
+    /// Hours in +1 .. +24 with precipitation > 0.1 mm (from NWP).
+    pub n_hours_with_rain: usize,
+    /// Sum of Open-Meteo NWP precipitation over the next 24 h.
+    pub total_precip_mm: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -327,7 +343,9 @@ fn predict_one_city(
             temperature_c: t_pred,
             temp_source: "ridge_24h".into(),
             precipitation_mm: round1(precip),
-            rain_probability: 0.0, // filled right after
+            rain_probability: 0.0,       // filled right after
+            rain_probability_model: 0.0, // filled right after
+            rain_probability_nwp: 0.0,   // filled right after
             cloudcover_pct: round1(cloud),
             windspeed_kmh: round1(wind),
             weathercode: wcode,
@@ -336,9 +354,26 @@ fn predict_one_city(
     }
 
     // Apply the bagging ensemble to all 24 rolling inputs in one pass.
+    // This gives the ML-only probability. We then blend it with the NWP
+    // probability derived from Open-Meteo's own hourly precipitation
+    // forecast, with the NWP component weighted 9x more because:
+    //   (a) the NWP is a physics-based model with demonstrably lower
+    //       bias on low-precipitation regimes (e.g. Dubai);
+    //   (b) our ML target (`will_rain_next_24h = precip_sum > 0`) is
+    //       too liberal — it marks 73.6 % of training samples as
+    //       positive, which biases the bagging ensemble toward high
+    //       vote counts even when features suggest dry weather;
+    //   (c) the NWP has access to global state (upstream systems,
+    //       synoptic patterns) that our local-only feature set cannot
+    //       capture.
     let proba_raw = super::artifacts::bagging_vote_batch(&bundle.rain_bagging, &bagging_inputs)?;
-    for (h, p) in hourly.iter_mut().zip(proba_raw.iter()) {
-        h.rain_probability = (bundle.rain_calibration.calibrate(*p) * 100.0).round() / 100.0;
+    for (h, p_ml_raw) in hourly.iter_mut().zip(proba_raw.iter()) {
+        let p_ml = bundle.rain_calibration.calibrate(*p_ml_raw);
+        let p_nwp = nwp_per_hour_probability(h.precipitation_mm);
+        let p_blend = blend_rain_prob(p_nwp, p_ml);
+        h.rain_probability_model = round_pct(p_ml);
+        h.rain_probability_nwp = round_pct(p_nwp);
+        h.rain_probability = round_pct(p_blend);
     }
 
     // --- RFC single-call on the "now" row + aggregate rain summary ------
@@ -350,19 +385,26 @@ fn predict_one_city(
     let n_rainy_hours = hourly.iter().filter(|h| h.precipitation_mm > 0.1).count();
     let total_precip: f64 = hourly.iter().map(|h| h.precipitation_mm).sum();
 
-    // Aggregate probability: take the mean calibrated proba across the 24
-    // hourly inputs (each one is "will it rain in the 24 h starting from
-    // that row?" — the target RFC was trained on). This is a reasonable
-    // proxy for "will it rain at some point in the next 24 h".
-    let agg_proba_cal = if !proba_raw.is_empty() {
+    // Aggregate the ML probability across the 24 rolling rows: each row
+    // was trained on "rain in the NEXT 24 h". Averaging the per-row raw
+    // probabilities and then calibrating yields a stable summary.
+    let agg_proba_ml = if !proba_raw.is_empty() {
         let mean_raw: f64 = proba_raw.iter().sum::<f64>() / proba_raw.len() as f64;
         bundle.rain_calibration.calibrate(mean_raw)
     } else {
         0.0
     };
+    let agg_proba_nwp = nwp_aggregate_probability(total_precip);
+    let agg_proba_blend = blend_rain_prob(agg_proba_nwp, agg_proba_ml);
+
     let rain_summary = RainSummary {
-        any_rain: agg_proba_cal > 0.5 || rfc_class == 1,
-        probability: (agg_proba_cal * 100.0).round() / 100.0,
+        // The boolean uses the blended prob plus a conservative 1 mm
+        // threshold on total NWP precipitation (either signal is enough).
+        any_rain: agg_proba_blend > 0.5 || total_precip > 1.0,
+        probability: round_pct(agg_proba_blend),
+        model_probability: round_pct(agg_proba_ml),
+        nwp_probability: round_pct(agg_proba_nwp),
+        blend_alpha_nwp: ALPHA_NWP,
         rfc_raw_class: rfc_class,
         n_hours_with_rain: n_rainy_hours,
         total_precip_mm: round1(total_precip),
@@ -448,6 +490,77 @@ fn last_row_for_city(df: &DataFrame, city: &str) -> Result<Option<usize>> {
 
 fn round1(x: f64) -> f64 {
     (x * 10.0).round() / 10.0
+}
+
+fn round_pct(x: f64) -> f64 {
+    // Round to 2 decimals so probabilities render cleanly and are
+    // stable for the golden-test assertions.
+    (x.clamp(0.0, 1.0) * 100.0).round() / 100.0
+}
+
+// -------------------------------------------------------------------------
+// Rain probability blending — NWP-dominant hybrid
+// -------------------------------------------------------------------------
+//
+// `ALPHA_NWP` is the weight of the NWP-derived probability in the final
+// blend. The rest (`1 - ALPHA_NWP`) goes to the ML bagging probability.
+// We set it high because the ML target (`precip > 0 mm` anywhere in the
+// next 24 h) is too liberal and biases the classifier toward positive
+// predictions. The NWP has a physical precipitation forecast and is
+// far more reliable for "will it actually rain?".
+pub const ALPHA_NWP: f64 = 0.9;
+
+/// Soft-threshold mapping from per-hour NWP precipitation (mm) to a
+/// rain probability in [0, 1].
+///
+/// Calibrated by eye against typical hourly precipitation interpretation:
+/// - 0.0 mm   → 0.02 (essentially no rain)
+/// - 0.01 mm  → 0.10 (trace)
+/// - 0.1 mm   → 0.35 (drizzle possible)
+/// - 0.3 mm   → 0.60 (light rain)
+/// - 1.0 mm   → 0.85 (moderate rain)
+/// - ≥ 3.0 mm → 0.97 (heavy rain, high confidence)
+fn nwp_per_hour_probability(precip_mm: f64) -> f64 {
+    if precip_mm >= 3.0 {
+        0.97
+    } else if precip_mm >= 1.0 {
+        0.85
+    } else if precip_mm >= 0.3 {
+        0.60
+    } else if precip_mm >= 0.1 {
+        0.35
+    } else if precip_mm >= 0.01 {
+        0.10
+    } else {
+        0.02
+    }
+}
+
+/// Mapping from 24 h aggregate NWP precipitation (mm) to a rain
+/// probability. The thresholds here are stricter than per-hour because
+/// 1 mm accumulated over a full day is barely anything; we reserve
+/// high probability for totals that correspond to a real rain event.
+fn nwp_aggregate_probability(total_mm: f64) -> f64 {
+    if total_mm >= 10.0 {
+        0.97
+    } else if total_mm >= 5.0 {
+        0.92
+    } else if total_mm >= 2.0 {
+        0.80
+    } else if total_mm >= 1.0 {
+        0.65
+    } else if total_mm >= 0.5 {
+        0.45
+    } else if total_mm >= 0.1 {
+        0.20
+    } else {
+        0.05
+    }
+}
+
+/// Weighted blend: `alpha_nwp * p_nwp + (1 - alpha_nwp) * p_ml`.
+fn blend_rain_prob(p_nwp: f64, p_ml: f64) -> f64 {
+    ALPHA_NWP * p_nwp + (1.0 - ALPHA_NWP) * p_ml
 }
 
 fn build_current_observation(df: &DataFrame, i: usize) -> Result<CurrentObservation> {
