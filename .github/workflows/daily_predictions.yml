@@ -2,69 +2,84 @@ name: Daily Weather Predictions
 
 on:
   schedule:
-    # Run every day at 06:00 UTC
+    # Runs every day at 06:00 UTC.
     - cron: '0 6 * * *'
+  # Allow manual runs from the Actions tab.
   workflow_dispatch:
-    # Allow manual trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-predictions
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
   predict:
+    name: Run daily predictions
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Write access is required to push the README update back.
+          persist-credentials: true
 
-      - name: Setup Rust
-        uses: dtolnay/rust-action@stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      - name: Cache cargo
+      - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-release-
 
-      - name: Build prediction binary
+      - name: Verify model artifacts are present
+        run: |
+          set -e
+          for f in \
+            models/scaler.json \
+            models/ridge_manual.json \
+            models/rain_rf_model.bin \
+            models/climatology.json \
+            models/production_contract.json \
+            models/golden_test.json \
+          ; do
+            test -f "$f" || { echo "Missing: $f"; exit 1; }
+          done
+          echo "All production artifacts present."
+
+      - name: Golden equivalence test (src/ vs notebook 05)
+        run: cargo test --release --test integration_loadmodel -- --nocapture
+
+      - name: Build release binary
         run: cargo build --release --bin daily_predictions
 
-      - name: Run predictions
+      - name: Run daily predictions
+        run: ./target/release/daily_predictions
+
+      - name: Commit updated README and report
         run: |
-          ./target/release/daily_predictions --format markdown --update-readme
-        env:
-          RUST_LOG: info
-
-      - name: Commit and push changes
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add README.md
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily weather predictions [skip ci]" && git push)
-
-  # Weekly model performance check
-  weekly-check:
-    runs-on: ubuntu-latest
-    if: github.event.schedule == '0 6 * * 0'  # Only on Sundays
-    needs: predict
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check model performance
-        run: |
-          echo "Weekly model performance check"
-          echo "TODO: Implement performance decay detection"
-          echo "TODO: Check for data drift"
-          echo "TODO: Alert if retraining needed"
+          git config user.name  "rust-weather-ml-bot"
+          git config user.email "actions@github.com"
+          git add README.md data/predictions/ 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "daily: weather predictions $(date -u +%F)"
+            git push
+          fi
