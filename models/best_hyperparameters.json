@@ -1,0 +1,35 @@
+{
+  "classification": {
+    "logistic": {
+      "cv_mcc": 0.433217536665971
+    },
+    "random_forest": {
+      "cv_mcc": 0.4621394182758534,
+      "max_depth": 20,
+      "n_trees": 200
+    }
+  },
+  "cv_strategy": "3-fold forward chaining (last fold used for regression)",
+  "regression": {
+    "gradient_boosting": {
+      "cv_rmse": 2.186737709011989,
+      "learning_rate": 0.09,
+      "max_depth": 6,
+      "n_trees": 41
+    },
+    "lasso": {
+      "alpha": 1.0,
+      "cv_rmse": 2.095508740747882
+    },
+    "random_forest": {
+      "cv_rmse": 2.2815226831871076,
+      "max_depth": 18,
+      "n_trees": 150
+    },
+    "ridge": {
+      "alpha": 10.0,
+      "cv_rmse": 2.1904471260858203
+    }
+  },
+  "selected_target": "temp_next_24h"
+}
