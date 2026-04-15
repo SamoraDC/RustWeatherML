@@ -25,7 +25,11 @@ use super::drift_monitor::DriftSnapshot;
 use super::predict::DailyReport;
 
 const FORECAST_HEADER: &str = "### 24-Hour, 48-Hour & 72-Hour Forecast";
-const LAST_RUN_MARK: &str   = "> Auto-updated daily at 06:00 UTC";
+// Match the original marker ("Auto-updated daily at 06:00 UTC") AND the new
+// marker ("Auto-updated every 3 h") so reruns keep working regardless of
+// which version of the README we started from.
+const LAST_RUN_MARK_OLD: &str = "> Auto-updated daily at 06:00 UTC";
+const LAST_RUN_MARK_NEW: &str = "> Auto-updated every 3 h";
 
 // -------------------------------------------------------------------------
 // Table builders
@@ -35,12 +39,13 @@ pub fn build_summary_table(report: &DailyReport) -> String {
     let mut out = String::new();
     out.push_str(FORECAST_HEADER);
     out.push_str("\n\n");
-    out.push_str("| City | Country | Now (local) | Current | +24h | +48h | +72h | Rain 24h | Confidence |\n");
-    out.push_str("|------|---------|-------------|---------|------|------|------|----------|------------|\n");
+    out.push_str("| City | Country | Now (local) | Current | +24h | +48h | +72h | Rain 24h | NWP precip | ML only | Confidence |\n");
+    out.push_str("|------|---------|-------------|---------|------|------|------|----------|------------|---------|------------|\n");
     for cf in &report.cities {
         let local_hour = local_hour_short(&cf.reference_local_time);
+        let rain = &cf.rain_next_24h;
         out.push_str(&format!(
-            "| {name} | {flag} | {hour} | {cur:+.1}°C | {p24:+.1}°C | {p48:+.1}°C | {p72:+.1}°C | {rain:>3}% | ±{sigma:.1}°C |\n",
+            "| {name} | {flag} | {hour} | {cur:+.1}°C | {p24:+.1}°C | {p48:+.1}°C | {p72:+.1}°C | {pct:>3}% | {mm:.1} mm ({hrs}h) | {ml_pct:>3}% | ±{sigma:.1}°C |\n",
             name = cf.city,
             flag = cf.flag,
             hour = local_hour,
@@ -48,17 +53,25 @@ pub fn build_summary_table(report: &DailyReport) -> String {
             p24 = cf.multi_horizon.t_plus_24h.temperature_c,
             p48 = cf.multi_horizon.t_plus_48h.temperature_c,
             p72 = cf.multi_horizon.t_plus_72h.temperature_c,
-            rain = (cf.rain_next_24h.probability * 100.0).round() as i32,
+            pct = (rain.probability * 100.0).round() as i32,
+            mm = rain.total_precip_mm,
+            hrs = rain.n_hours_with_rain,
+            ml_pct = (rain.model_probability * 100.0).round() as i32,
             sigma = cf.meta.expected_rmse_24h_c,
         ));
     }
     out.push_str("\n");
-    out.push_str("> **Source of each horizon.** `+24h`, `+48h`, and `+72h` all come from dedicated Ridge (alpha=10) ");
-    out.push_str("models trained in Notebook 05 on the `temp_next_{24,48,72}h` targets. ");
-    out.push_str("All three models share the same feature set and scaler; the RMSE grows from ~3.4 °C at 24 h to ~5.1 °C at 72 h ");
-    out.push_str("because weather decorrelates over time. `Rain 24h` is the aggregate calibrated probability from a 30-tree ");
-    out.push_str("DecisionTree bagging ensemble, mapped through the Notebook 05 reliability curve. ");
-    out.push_str("`Confidence` is ±1 sigma = ±RMSE on the held-out test. `Now (local)` is the city's local time at the reference row.\n");
+    out.push_str("> **How to read the rain columns.** `Rain 24h` is the **blended** probability ");
+    out.push_str("that there will be any rain at all in the next 24 h, computed as ");
+    out.push_str("`α·p_NWP + (1−α)·p_ML` with `α = 0.9`. The physical NWP signal dominates because ");
+    out.push_str("the ML classifier was trained on a target (`precip_sum_next_24h > 0 mm`) that was ");
+    out.push_str("73.6 % positive in the training set and therefore has a positive prior bias. ");
+    out.push_str("`NWP precip` shows the *actual* predicted rainfall in millimetres from Open-Meteo's ");
+    out.push_str("numerical weather model, plus how many hours will have any precipitation. ");
+    out.push_str("`ML only` shows the bagging-ensemble probability in isolation so you can see the drift. ");
+    out.push_str("`+24h`, `+48h`, `+72h` come from dedicated Ridge (α=10) regressors trained in ");
+    out.push_str("Notebook 05 on `temp_next_{24,48,72}h` with RMSE 3.5 / 4.5 / 5.1 °C. ");
+    out.push_str("`Confidence` is ±1σ = ±RMSE of the 24 h test. `Now (local)` is the city's local time.\n");
     out
 }
 
@@ -75,15 +88,17 @@ pub fn build_hourly_details(report: &DailyReport) -> String {
             zone = cf.climate_zone,
             tz = cf.timezone,
         ));
-        out.push_str("| +h | local time | temp | rain % | precip | clouds | wind | conditions |\n");
-        out.push_str("|----|------------|------|--------|--------|--------|------|------------|\n");
+        out.push_str("| +h | local time | temp | rain % | (NWP) | (ML) | precip | clouds | wind | conditions |\n");
+        out.push_str("|----|------------|------|--------|-------|------|--------|--------|------|------------|\n");
         for h in &cf.hourly {
             out.push_str(&format!(
-                "| +{off} | {t} | {temp:+.1}°C | {rain:>3}% | {precip:.1} mm | {cloud:>3}% | {wind:>4.1} km/h | {cond} |\n",
+                "| +{off} | {t} | {temp:+.1}°C | {rain:>3}% | {nwp:>3}% | {ml:>3}% | {precip:.1} mm | {cloud:>3}% | {wind:>4.1} km/h | {cond} |\n",
                 off = h.hour_offset,
                 t = h.local_time.replace('T', " "),
                 temp = h.temperature_c,
                 rain = (h.rain_probability * 100.0).round() as i32,
+                nwp = (h.rain_probability_nwp * 100.0).round() as i32,
+                ml = (h.rain_probability_model * 100.0).round() as i32,
                 precip = h.precipitation_mm,
                 cloud = h.cloudcover_pct.round() as i32,
                 wind = h.windspeed_kmh,
@@ -152,10 +167,13 @@ pub fn update_readme<P: AsRef<Path>>(
         .with_context(|| format!("read README from {:?}", path.as_ref()))?;
 
     let ts = Utc::now().format("%Y-%m-%d %H:%M UTC").to_string();
-    let mut updated = replace_line(
+    let new_line = format!(
+        "> Auto-updated every 3 h via GitHub Actions | Last run: {ts}"
+    );
+    let mut updated = replace_line_multi(
         &readme,
-        LAST_RUN_MARK,
-        &format!("> Auto-updated daily at 06:00 UTC | Last run: {ts}"),
+        &[LAST_RUN_MARK_OLD, LAST_RUN_MARK_NEW],
+        &new_line,
     );
 
     if let Some(start) = updated.find(FORECAST_HEADER) {
@@ -184,10 +202,10 @@ pub fn update_readme<P: AsRef<Path>>(
     Ok(true)
 }
 
-fn replace_line(src: &str, marker: &str, new_line: &str) -> String {
+fn replace_line_multi(src: &str, markers: &[&str], new_line: &str) -> String {
     src.lines()
         .map(|l| {
-            if l.starts_with(marker) {
+            if markers.iter().any(|m| l.starts_with(m)) {
                 new_line.to_string()
             } else {
                 l.to_string()
