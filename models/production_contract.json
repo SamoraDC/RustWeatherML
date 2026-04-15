@@ -1,43 +1,68 @@
 {
   "binary_hashes_sha256": {
-    "golden_test.json": "18f03ffd75ff880c18bf68744acdae7a436731d0d1e573c7fb2f5251a66118c3",
+    "golden_test.json": "0ffc35554ab0735eb2003ae2c863269311af45d311a711675a55f6f0f48d5dc3",
+    "rain_bagging_ensemble.bin": "ce4165bb91cdaa16790c912696cbd90f098fac07647980c317027a226cb72c29",
+    "rain_calibration.json": "54f72853aa01a5a4f623371e50459046ada60187da1dfce2346c1f0211614632",
     "rain_rf_model.bin": "887606802246426950153ba7ea76f95e4effa2124df0249d4a9381000e0b5424",
+    "ridge_48h_model.bin": "1c4e40cefaa3f769331e7e5176cc7628ee01f8ed9440fe7cd5f3bf1dc2f78b4a",
+    "ridge_72h_model.bin": "0746c91ea0400f427c02338e8ca719804783476d2c823b91c1e978642cb5a68d",
     "ridge_model.bin": "fc0b83029417911bb4573e55854279b9a319bffe9a6876c57e9cd5d1f9018b53",
-    "scaler.json": "3a85c0ffd0d37970dd53fcff1c725a4758d961b7c236b2c8b686e79b707aa4c0"
+    "scaler.json": "9a46e6c83881f74e7164c257b1224104da3a361409480571ee3faed485f3e1d0"
   },
   "calibration": {
     "brier_climatology": 0.19382263269333694,
-    "brier_score": 0.09165819279100618,
-    "brier_skill_score": 0.5271027355405584
+    "brier_score": 0.09066822562358334,
+    "brier_skill_score": 0.5322103287749829
   },
   "downstream_invariants": [
-    "src/ must load ridge_model.bin via bincode and use the scaler from scaler.json",
-    "src/ must load rain_rf_model.bin via bincode for rain classification",
+    "src/ must load all three Ridge models via bincode (or the manual JSON form)",
+    "src/ must load rain_bagging_ensemble.bin for calibrated rain probabilities",
+    "src/ must apply rain_calibration.json to map vote counts to observed frequencies",
     "src/ must use feature_names in this exact order",
-    "tests/integration_loadmodel.rs must replay golden_test.json and match within tolerance_abs_golden_path",
+    "tests/integration_loadmodel.rs must replay golden_test.json v2.0 within tolerance",
     "CI must assert binary_hashes_sha256 unchanged until a deliberate retrain"
   ],
   "expected_classification_metrics": {
-    "accuracy": 0.8766741071428571,
+    "accuracy": 0.8839285714285714,
     "confusion": {
-      "fn": 247,
-      "fp": 416,
-      "tn": 1130,
-      "tp": 3583
+      "fn": 203,
+      "fp": 343,
+      "tn": 1023,
+      "tp": 3135
     },
-    "f1": 0.9153148550261847,
-    "mcc": 0.6910579367594798
+    "f1": 0.919894366197183,
+    "mcc": 0.7115441830751655
   },
   "expected_regression_metrics": {
-    "mae": 2.345629639165381,
-    "mbe": -0.6839266258308762,
-    "r2": 0.8656620519852034,
-    "rmse": 3.4080912128735505,
+    "mae": 2.4261177776145804,
+    "mbe": -0.6895156624973187,
+    "r2": 0.8546608812253136,
+    "rmse": 3.5292715634465934,
     "rmse_95_ci": [
-      3.3215016023054926,
-      3.5047548277253697
+      3.427748251858772,
+      3.6563366082271513
     ],
-    "skill_vs_persistence_24h": 0.2635581199552294
+    "skill_vs_persistence_24h": 0.25049857007974485
+  },
+  "expected_regression_metrics_48h": {
+    "mae": 3.362378776394871,
+    "mbe": -1.4846854946810877,
+    "r2": 0.75227880663863,
+    "rmse": 4.457783559164043,
+    "rmse_95_ci": [
+      4.357612408717038,
+      4.553660570377068
+    ]
+  },
+  "expected_regression_metrics_72h": {
+    "mae": 3.8931318241962325,
+    "mbe": -2.2473712587034527,
+    "r2": 0.6578229611946897,
+    "rmse": 5.065073311806235,
+    "rmse_95_ci": [
+      4.9412496333293605,
+      5.169300420725717
+    ]
   },
   "feature_names": [
     "latitude",
@@ -127,6 +152,7 @@
     "gb_learning_rate": 0.09,
     "gb_trees": 41,
     "lasso_alpha": 1.0,
+    "n_bagging_trees": 30,
     "rf_depth": 18,
     "rf_trees": 150,
     "rfc_depth": 20,
@@ -135,7 +161,8 @@
   },
   "n_features": 80,
   "tolerance_abs_golden_path": 1e-9,
+  "tolerance_abs_probability": 1e-9,
   "tolerance_abs_regression": 1e-6,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "winner_model": "Ridge (alpha=10)"
 }
