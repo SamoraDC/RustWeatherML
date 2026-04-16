@@ -52,9 +52,6 @@ tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 thiserror = "2.0"
 
-# Visualization
-plotters = "0.3"
-
 # Statistics
 statrs = "0.18"
 
