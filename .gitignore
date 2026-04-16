@@ -32,6 +32,10 @@ models/*.bin
 models/*.onnx
 models/*.pt
 
+# Production model binaries required by CI
+!models/rain_rf_model.bin
+!models/rain_bagging_ensemble.bin
+
 # But keep directory structure
 !models/.gitkeep
 
