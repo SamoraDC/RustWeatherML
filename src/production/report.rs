@@ -1,20 +1,32 @@
-//! README injector (v2.0 — richer layout).
+//! README injector (v2.1 — marker-anchored).
 //!
 //! The README now contains three blocks that this module rewrites on
 //! every run:
 //!
-//! 1. **Summary table** — one row per city with "Now" + +24/48/72 h
-//!    point predictions + calibrated rain probability over the next
-//!    24 h.
+//! 1. **Summary table** — one row per city with the reference timestamp,
+//!    the +24 / +48 / +72 h point predictions, and the calibrated rain
+//!    probability over the next 24 h.
+//!
 //! 2. **Hourly detail** — a collapsible `<details>` block per city with
-//!    the 24 hourly predictions (local time, temp, rain %,
-//!    precipitation, clouds, wind, weather condition).
+//!    the 24 hourly predictions (local time, temp, rain %, precipitation,
+//!    clouds, wind, weather condition).
+//!
 //! 3. **Model performance + drift banner** — stored metrics from
 //!    Notebook 05 plus the most recent drift snapshot.
 //!
-//! Section boundaries in the README are anchored by the existing
-//! `### 24-Hour, 48-Hour & 72-Hour Forecast` heading and end at the
-//! next `###` heading.
+//! The live block is delimited by two HTML-comment markers
+//! (`BEGIN_MARK` / `END_MARK`). Every invocation replaces the bytes
+//! between those markers in full, which makes the operation idempotent
+//! — running the injector twice with the same report produces the same
+//! file.
+//!
+//! The previous version used "next `### ` heading" as the end sentinel,
+//! but the new section itself contained several `### ` sub-headings, so
+//! each run only rewrote the summary table and appended a fresh copy of
+//! the hourly / performance / drift blocks in front of the ones written
+//! by the previous run. This produced the 22-way duplication observed
+//! in README.md. The marker-based approach eliminates that class of bug
+//! entirely.
 
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
@@ -25,6 +37,11 @@ use super::drift_monitor::DriftSnapshot;
 use super::predict::DailyReport;
 
 const FORECAST_HEADER: &str = "### 24-Hour, 48-Hour & 72-Hour Forecast";
+/// Opening sentinel for the live-prediction block. Must live on its own
+/// line so it is invisible in rendered markdown.
+const BEGIN_MARK: &str = "<!-- BEGIN:LIVE_PREDICTIONS -->";
+/// Closing sentinel for the live-prediction block.
+const END_MARK: &str = "<!-- END:LIVE_PREDICTIONS -->";
 // Match the original marker ("Auto-updated daily at 06:00 UTC") AND the new
 // marker ("Auto-updated every 3 h") so reruns keep working regardless of
 // which version of the README we started from.
@@ -39,8 +56,8 @@ pub fn build_summary_table(report: &DailyReport) -> String {
     let mut out = String::new();
     out.push_str(FORECAST_HEADER);
     out.push_str("\n\n");
-    out.push_str("| City | Country | Now (local) | Current | +24h | +48h | +72h | Rain 24h | NWP precip | ML only | Confidence |\n");
-    out.push_str("|------|---------|-------------|---------|------|------|------|----------|------------|---------|------------|\n");
+    out.push_str("| City | Country | As of (local) | Current | +24h | +48h | +72h | Rain 24h | NWP precip | ML only | Confidence |\n");
+    out.push_str("|------|---------|---------------|---------|------|------|------|----------|------------|---------|------------|\n");
     for cf in &report.cities {
         let local_hour = local_hour_short(&cf.reference_local_time);
         let rain = &cf.rain_next_24h;
@@ -60,7 +77,7 @@ pub fn build_summary_table(report: &DailyReport) -> String {
             sigma = cf.meta.expected_rmse_24h_c,
         ));
     }
-    out.push_str("\n");
+    out.push('\n');
     out.push_str("> **How to read the rain columns.** `Rain 24h` is the **blended** probability ");
     out.push_str("that there will be any rain at all in the next 24 h, computed as ");
     out.push_str("`α·p_NWP + (1−α)·p_ML` with `α = 0.9`. The physical NWP signal dominates because ");
@@ -71,7 +88,9 @@ pub fn build_summary_table(report: &DailyReport) -> String {
     out.push_str("`ML only` shows the bagging-ensemble probability in isolation so you can see the drift. ");
     out.push_str("`+24h`, `+48h`, `+72h` come from dedicated Ridge (α=10) regressors trained in ");
     out.push_str("Notebook 05 on `temp_next_{24,48,72}h` with RMSE 3.5 / 4.5 / 5.1 °C. ");
-    out.push_str("`Confidence` is ±1σ = ±RMSE of the 24 h test. `Now (local)` is the city's local time.\n");
+    out.push_str("`Confidence` is ±1σ = ±RMSE of the 24 h test. ");
+    out.push_str("`As of (local)` is the city's local timestamp of the last observed hour that anchors ");
+    out.push_str("the forecast (end of the Open-Meteo past window, typically 23:00 of the previous day).\n");
     out
 }
 
@@ -158,6 +177,20 @@ pub fn build_performance_block(report: &DailyReport, drift: Option<&DriftSnapsho
 // README injection
 // -------------------------------------------------------------------------
 
+/// Build the full live-predictions block wrapped between the BEGIN / END
+/// sentinels. Exposed so that tests can exercise it in isolation.
+pub fn build_live_block(report: &DailyReport, drift: Option<&DriftSnapshot>) -> String {
+    let mut out = String::new();
+    out.push_str(BEGIN_MARK);
+    out.push('\n');
+    out.push_str(&build_summary_table(report));
+    out.push_str(&build_hourly_details(report));
+    out.push_str(&build_performance_block(report, drift));
+    out.push('\n');
+    out.push_str(END_MARK);
+    out
+}
+
 pub fn update_readme<P: AsRef<Path>>(
     path: P,
     report: &DailyReport,
@@ -165,41 +198,85 @@ pub fn update_readme<P: AsRef<Path>>(
 ) -> Result<bool> {
     let readme = fs::read_to_string(path.as_ref())
         .with_context(|| format!("read README from {:?}", path.as_ref()))?;
+    let updated = rewrite_readme(&readme, report, drift)?;
+    fs::write(path.as_ref(), updated)
+        .with_context(|| format!("write README to {:?}", path.as_ref()))?;
+    Ok(true)
+}
 
+/// Pure rewrite step — takes the current README body and returns the new
+/// one. Factored out of `update_readme` so unit tests can exercise the
+/// logic without hitting the filesystem.
+pub fn rewrite_readme(
+    source: &str,
+    report: &DailyReport,
+    drift: Option<&DriftSnapshot>,
+) -> Result<String> {
     let ts = Utc::now().format("%Y-%m-%d %H:%M UTC").to_string();
     let new_line = format!(
         "> Auto-updated every 3 h via GitHub Actions | Last run: {ts}"
     );
     let mut updated = replace_line_multi(
-        &readme,
+        source,
         &[LAST_RUN_MARK_OLD, LAST_RUN_MARK_NEW],
         &new_line,
     );
 
-    if let Some(start) = updated.find(FORECAST_HEADER) {
-        let tail = &updated[start + FORECAST_HEADER.len()..];
-        let end_offset = tail
-            .find("\n### ")
-            .map(|off| start + FORECAST_HEADER.len() + off)
-            .unwrap_or_else(|| updated.len());
-        let before = &updated[..start];
-        let after = &updated[end_offset..];
+    let new_section = build_live_block(report, drift);
 
-        let mut new_section = build_summary_table(report);
-        new_section.push_str(&build_hourly_details(report));
-        new_section.push_str(&build_performance_block(report, drift));
-
-        updated = format!("{before}{new_section}\n{after}");
-    } else {
-        return Err(anyhow!(
-            "README does not contain the '{}' marker",
-            FORECAST_HEADER
-        ));
+    match (updated.find(BEGIN_MARK), updated.find(END_MARK)) {
+        (Some(b), Some(e)) if e > b => {
+            // Fast path: both markers present and in the correct order.
+            let before = &updated[..b];
+            let after = &updated[e + END_MARK.len()..];
+            updated = format!("{before}{new_section}{after}");
+        }
+        (Some(_), Some(_)) => {
+            return Err(anyhow!(
+                "README has '{}' appearing before '{}'; refusing to rewrite",
+                END_MARK,
+                BEGIN_MARK
+            ));
+        }
+        (Some(_), None) | (None, Some(_)) => {
+            return Err(anyhow!(
+                "README has only one of '{}' / '{}'; refusing to rewrite",
+                BEGIN_MARK,
+                END_MARK
+            ));
+        }
+        (None, None) => {
+            // Migration path: anchor markers missing. This catches both
+            // the pristine v1 README and the duplicate-bloated README we
+            // inherited from the v2.0 injector. Cut from FORECAST_HEADER
+            // up to (but not including) the next level-2 heading, then
+            // splice the fresh marker-wrapped block in its place with a
+            // horizontal-rule separator.
+            let start = updated.find(FORECAST_HEADER).ok_or_else(|| {
+                anyhow!(
+                    "README contains neither the marker pair nor '{}'; nothing to anchor on",
+                    FORECAST_HEADER
+                )
+            })?;
+            let tail = &updated[start..];
+            let level2_offset = tail
+                .find("\n## ")
+                .ok_or_else(|| anyhow!(
+                    "README contains '{}' but no following '## ' heading; aborting",
+                    FORECAST_HEADER
+                ))?;
+            let before = &updated[..start];
+            // `level2_offset` points at the `\n` that precedes the next
+            // level-2 heading. Keep that newline as the start of `after`,
+            // and emit exactly one horizontal rule + one blank line so
+            // the transition into `## 📋 Project Overview` renders the
+            // same way the hand-authored source did.
+            let after = &updated[start + level2_offset..];
+            updated = format!("{before}{new_section}\n\n---\n{after}");
+        }
     }
 
-    fs::write(path.as_ref(), updated)
-        .with_context(|| format!("write README to {:?}", path.as_ref()))?;
-    Ok(true)
+    Ok(updated)
 }
 
 fn replace_line_multi(src: &str, markers: &[&str], new_line: &str) -> String {
@@ -220,4 +297,198 @@ fn local_hour_short(iso: &str) -> String {
     iso.split('T').nth(1)
         .unwrap_or(iso)
         .chars().take(5).collect()
+}
+
+// -------------------------------------------------------------------------
+// Tests
+// -------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::production::drift_monitor::{DriftSnapshot, FeatureDrift};
+    use crate::production::predict::{
+        CityForecast, CurrentObservation, DailyReport, ForecastMeta, HorizonPoint,
+        HourlyPrediction, MultiHorizon, RainSummary,
+    };
+    use std::collections::BTreeMap;
+
+    fn stub_report() -> DailyReport {
+        let meta = ForecastMeta {
+            model_24h: "Ridge".into(),
+            model_48h: "Ridge 48h".into(),
+            model_72h: "Ridge 72h".into(),
+            model_version: "2.0.0".into(),
+            hourly_model: "Ridge rolled".into(),
+            rain_model: "Bagging".into(),
+            expected_rmse_24h_c: 3.5,
+            expected_rmse_48h_c: 4.5,
+            expected_rmse_72h_c: 5.0,
+            bias_correction_24h_c: 0.5,
+        };
+        let hp = HorizonPoint {
+            temperature_c: 20.0,
+            local_time: "2026-04-18T23:00".into(),
+            source: "ridge_24h".into(),
+            expected_rmse_c: 3.5,
+            ci95_low_c: 3.3,
+            ci95_high_c: 3.7,
+        };
+        let hourly: Vec<HourlyPrediction> = (1..=24)
+            .map(|k: i32| HourlyPrediction {
+                local_time: format!("2026-04-18T{:02}:00", (k as u32) % 24),
+                hour_offset: k,
+                temperature_c: 20.0,
+                temp_source: "ridge_24h".into(),
+                precipitation_mm: 0.0,
+                rain_probability: 0.1,
+                rain_probability_model: 0.1,
+                rain_probability_nwp: 0.1,
+                cloudcover_pct: 10.0,
+                windspeed_kmh: 5.0,
+                weathercode: 0,
+                weather_condition: "Clear".into(),
+            })
+            .collect();
+        let cf = CityForecast {
+            city: "Test City".into(),
+            country_code: "TC".into(),
+            flag: "🏳".into(),
+            latitude: 0.0,
+            longitude: 0.0,
+            elevation_m: 0.0,
+            timezone: "UTC".into(),
+            climate_zone: "Cfa".into(),
+            reference_local_time: "2026-04-17T23:00".into(),
+            reference_utc_time: "2026-04-17T23:00Z".into(),
+            current: CurrentObservation {
+                temperature_c: 19.0,
+                dewpoint_c: 12.0,
+                humidity_pct: 70.0,
+                windspeed_kmh: 5.0,
+                winddir_deg: 180.0,
+                pressure_hpa: 1012.0,
+                cloudcover_pct: 10.0,
+                precipitation_mm: 0.0,
+                weathercode: 0,
+                weather_condition: "Clear".into(),
+            },
+            hourly,
+            multi_horizon: MultiHorizon {
+                t_plus_24h: hp.clone(),
+                t_plus_48h: hp.clone(),
+                t_plus_72h: hp,
+            },
+            rain_next_24h: RainSummary {
+                any_rain: false,
+                probability: 0.1,
+                model_probability: 0.1,
+                nwp_probability: 0.1,
+                blend_alpha_nwp: 0.9,
+                rfc_raw_class: 0,
+                n_hours_with_rain: 0,
+                total_precip_mm: 0.0,
+            },
+            meta,
+        };
+        DailyReport {
+            generated_at_utc: "2026-04-18T21:46Z".into(),
+            n_cities: 1,
+            n_successful: 1,
+            n_failed: 0,
+            model_contract_version: "2.0.0".into(),
+            cities: vec![cf],
+            failures: vec![],
+        }
+    }
+
+    fn stub_drift() -> DriftSnapshot {
+        let mut features = BTreeMap::new();
+        features.insert(
+            "temperature_2m".to_string(),
+            FeatureDrift {
+                psi: 0.5,
+                ks: 0.1,
+                current_mean: 20.0,
+                current_std: 4.0,
+                mean_shift_in_ref_std: 0.2,
+                n_observations: 2000,
+                status: "moderate".into(),
+            },
+        );
+        DriftSnapshot {
+            timestamp_utc: "2026-04-18T21:46Z".into(),
+            n_observations: 2000,
+            n_cities: 14,
+            max_psi: 0.5,
+            any_drift: false,
+            features,
+        }
+    }
+
+    const MIGRATION_FIXTURE: &str = "# Title\n\n## 🌍 Live Weather Predictions\n\n> Auto-updated every 3 h via GitHub Actions | Last run: OLD\n\n### 24-Hour, 48-Hour & 72-Hour Forecast\n\nold summary table garbage\n\n### Hourly Predictions (next 24 h, per city)\n\nold hourly\n\n### Model Performance (held-out test set)\n\nold perf\n\n### Drift Monitor (last run)\n\nold drift\n\n### Hourly Predictions (next 24 h, per city)\n\nduplicate copy\n\n### Model Performance (held-out test set)\n\nduplicate copy\n\n---\n\n## 📋 Project Overview\n\nProject body stays.\n";
+
+    #[test]
+    fn rewrite_is_idempotent() {
+        let report = stub_report();
+        let drift = stub_drift();
+        let first = rewrite_readme(MIGRATION_FIXTURE, &report, Some(&drift)).unwrap();
+        let second = rewrite_readme(&first, &report, Some(&drift)).unwrap();
+        // The only legitimate difference between consecutive runs is the
+        // `Last run:` timestamp. We strip it before comparing so the test
+        // is not flaky when the second call happens in a different UTC
+        // minute.
+        let strip_ts = |s: &str| {
+            s.lines()
+                .map(|l| {
+                    if l.starts_with("> Auto-updated every 3 h") {
+                        "> Auto-updated every 3 h via GitHub Actions | Last run: <TS>"
+                            .to_string()
+                    } else {
+                        l.to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        assert_eq!(strip_ts(&first), strip_ts(&second));
+    }
+
+    #[test]
+    fn rewrite_cleans_up_duplicates() {
+        let report = stub_report();
+        let drift = stub_drift();
+        let out = rewrite_readme(MIGRATION_FIXTURE, &report, Some(&drift)).unwrap();
+        // Exactly one of each live sub-heading must remain.
+        assert_eq!(out.matches("### Hourly Predictions (next 24 h, per city)").count(), 1);
+        assert_eq!(out.matches("### Model Performance (held-out test set)").count(), 1);
+        assert_eq!(out.matches("### Drift Monitor (last run)").count(), 1);
+        // Markers must be present and in the right order.
+        let b = out.find(BEGIN_MARK).expect("BEGIN marker inserted");
+        let e = out.find(END_MARK).expect("END marker inserted");
+        assert!(b < e, "BEGIN must precede END");
+        // The project overview must still be there, untouched.
+        assert!(out.contains("## 📋 Project Overview"));
+        assert!(out.contains("Project body stays."));
+    }
+
+    #[test]
+    fn rewrite_accepts_marker_wrapped_input() {
+        let report = stub_report();
+        let drift = stub_drift();
+        // Start from a marker-wrapped README so we exercise the fast path.
+        let seeded = rewrite_readme(MIGRATION_FIXTURE, &report, Some(&drift)).unwrap();
+        let again = rewrite_readme(&seeded, &report, Some(&drift)).unwrap();
+        assert!(again.contains(BEGIN_MARK));
+        assert!(again.contains(END_MARK));
+        assert_eq!(again.matches(BEGIN_MARK).count(), 1);
+        assert_eq!(again.matches(END_MARK).count(), 1);
+    }
+
+    #[test]
+    fn summary_header_uses_as_of_label() {
+        let out = build_summary_table(&stub_report());
+        assert!(out.contains("| As of (local) |"));
+        assert!(!out.contains("| Now (local) |"));
+    }
 }
