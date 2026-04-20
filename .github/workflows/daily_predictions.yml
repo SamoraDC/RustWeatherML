@@ -93,7 +93,22 @@ jobs:
           else
             STAMP=$(date -u +%Y-%m-%dT%HZ)
             git commit -m "weather: predictions run ${STAMP} [ci skip]"
-            # Rebase in case a concurrent manual dispatch pushed first.
-            git pull --rebase --autostash origin ${GITHUB_REF#refs/heads/} || true
-            git push
+            BRANCH=${GITHUB_REF#refs/heads/}
+            # Retry up to 3x: a concurrent push (bot ou humano) pode ter avançado
+            # o remoto. Em conflito no README.md preferimos a versão recém-gerada
+            # com as previsões (-X theirs no rebase).
+            for attempt in 1 2 3; do
+              git fetch origin "$BRANCH"
+              if git rebase -X theirs "origin/$BRANCH"; then
+                if git push origin "HEAD:$BRANCH"; then
+                  echo "Pushed on attempt $attempt."
+                  exit 0
+                fi
+              else
+                git rebase --abort || true
+              fi
+              sleep 5
+            done
+            echo "Failed to push after 3 attempts." >&2
+            exit 1
           fi
