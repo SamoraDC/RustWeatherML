@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-06-17T15:38:17.054521349+00:00",
+  "generated_at_utc": "2026-06-17T15:53:11.183249128+00:00",
   "n_cities": 14,
   "n_successful": 13,
   "n_failed": 1,
@@ -1818,8 +1818,8 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 3.0,
-          "windspeed_kmh": 8.7,
+          "cloudcover_pct": 6.0,
+          "windspeed_kmh": 10.2,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -1832,8 +1832,8 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 1.0,
-          "windspeed_kmh": 13.0,
+          "cloudcover_pct": 5.0,
+          "windspeed_kmh": 14.0,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -1847,7 +1847,7 @@
           "rain_probability_model": 0.62,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 0.0,
-          "windspeed_kmh": 13.5,
+          "windspeed_kmh": 14.9,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -1861,7 +1861,7 @@
           "rain_probability_model": 0.62,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 0.0,
-          "windspeed_kmh": 20.4,
+          "windspeed_kmh": 18.2,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -1874,9 +1874,9 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.62,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 76.0,
-          "windspeed_kmh": 19.7,
-          "weathercode": 2,
+          "cloudcover_pct": 100.0,
+          "windspeed_kmh": 18.7,
+          "weathercode": 3,
           "weather_condition": "Cloudy"
         },
         {
@@ -1889,7 +1889,7 @@
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 20.8,
+          "windspeed_kmh": 21.4,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -1902,8 +1902,8 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 9.0,
-          "windspeed_kmh": 22.2,
+          "cloudcover_pct": 10.0,
+          "windspeed_kmh": 20.6,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -1916,8 +1916,8 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 4.0,
-          "windspeed_kmh": 21.0,
+          "cloudcover_pct": 0.0,
+          "windspeed_kmh": 23.1,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -1930,8 +1930,8 @@
           "rain_probability": 0.1,
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 6.0,
-          "windspeed_kmh": 21.7,
+          "cloudcover_pct": 1.0,
+          "windspeed_kmh": 21.2,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -1944,10 +1944,10 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 79.0,
-          "windspeed_kmh": 20.5,
-          "weathercode": 2,
-          "weather_condition": "Cloudy"
+          "cloudcover_pct": 36.0,
+          "windspeed_kmh": 17.4,
+          "weathercode": 1,
+          "weather_condition": "Clear"
         },
         {
           "local_time": "2026-06-17T20:00",
@@ -1958,9 +1958,9 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 79.0,
-          "windspeed_kmh": 17.9,
-          "weathercode": 2,
+          "cloudcover_pct": 100.0,
+          "windspeed_kmh": 15.9,
+          "weathercode": 3,
           "weather_condition": "Cloudy"
         },
         {
@@ -1972,10 +1972,10 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 24.0,
-          "windspeed_kmh": 15.9,
-          "weathercode": 1,
-          "weather_condition": "Clear"
+          "cloudcover_pct": 100.0,
+          "windspeed_kmh": 13.4,
+          "weathercode": 3,
+          "weather_condition": "Cloudy"
         },
         {
           "local_time": "2026-06-17T22:00",
@@ -1987,7 +1987,7 @@
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 13.5,
+          "windspeed_kmh": 12.5,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -2000,8 +2000,8 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 97.0,
-          "windspeed_kmh": 10.8,
+          "cloudcover_pct": 100.0,
+          "windspeed_kmh": 9.7,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         }
@@ -2187,9 +2187,9 @@
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 1.9,
-          "weathercode": 3,
-          "weather_condition": "Cloudy"
+          "windspeed_kmh": 3.3,
+          "weathercode": 45,
+          "weather_condition": "Foggy"
         },
         {
           "local_time": "2026-06-17T08:00",
@@ -2201,7 +2201,7 @@
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 1.5,
+          "windspeed_kmh": 3.7,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -2215,7 +2215,7 @@
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 3.1,
+          "windspeed_kmh": 2.5,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -2228,9 +2228,9 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 78.0,
-          "windspeed_kmh": 6.2,
-          "weathercode": 2,
+          "cloudcover_pct": 91.0,
+          "windspeed_kmh": 5.6,
+          "weathercode": 3,
           "weather_condition": "Cloudy"
         },
         {
@@ -2242,8 +2242,8 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 28.0,
-          "windspeed_kmh": 7.5,
+          "cloudcover_pct": 41.0,
+          "windspeed_kmh": 7.9,
           "weathercode": 1,
           "weather_condition": "Clear"
         },
@@ -2256,7 +2256,7 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 10.0,
+          "cloudcover_pct": 14.0,
           "windspeed_kmh": 8.7,
           "weathercode": 0,
           "weather_condition": "Clear"
@@ -2270,8 +2270,8 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 8.0,
-          "windspeed_kmh": 12.3,
+          "cloudcover_pct": 7.0,
+          "windspeed_kmh": 11.2,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -2284,8 +2284,8 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.65,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 10.0,
-          "windspeed_kmh": 15.5,
+          "cloudcover_pct": 8.0,
+          "windspeed_kmh": 14.5,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -2298,8 +2298,8 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 8.0,
-          "windspeed_kmh": 15.3,
+          "cloudcover_pct": 7.0,
+          "windspeed_kmh": 15.1,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -2312,8 +2312,8 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 10.0,
-          "windspeed_kmh": 15.0,
+          "cloudcover_pct": 9.0,
+          "windspeed_kmh": 15.2,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -2327,7 +2327,7 @@
           "rain_probability_model": 0.62,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 10.0,
-          "windspeed_kmh": 14.7,
+          "windspeed_kmh": 14.6,
           "weathercode": 0,
           "weather_condition": "Clear"
         },
@@ -2340,9 +2340,9 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 15.0,
-          "windspeed_kmh": 14.1,
-          "weathercode": 0,
+          "cloudcover_pct": 24.0,
+          "windspeed_kmh": 14.2,
+          "weathercode": 1,
           "weather_condition": "Clear"
         },
         {
@@ -2354,8 +2354,8 @@
           "rain_probability": 0.08,
           "rain_probability_model": 0.62,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 32.0,
-          "windspeed_kmh": 11.4,
+          "cloudcover_pct": 33.0,
+          "windspeed_kmh": 12.0,
           "weathercode": 1,
           "weather_condition": "Clear"
         },
@@ -2368,8 +2368,8 @@
           "rain_probability": 0.09,
           "rain_probability_model": 0.71,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 39.0,
-          "windspeed_kmh": 10.5,
+          "cloudcover_pct": 32.0,
+          "windspeed_kmh": 9.7,
           "weathercode": 1,
           "weather_condition": "Clear"
         },
@@ -2383,7 +2383,7 @@
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 7.0,
+          "windspeed_kmh": 8.1,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -2397,7 +2397,7 @@
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 5.1,
+          "windspeed_kmh": 5.6,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -2411,7 +2411,7 @@
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 4.5,
+          "windspeed_kmh": 4.7,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         }
@@ -3146,8 +3146,8 @@
           "rain_probability": 0.1,
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 94.0,
-          "windspeed_kmh": 19.4,
+          "cloudcover_pct": 95.0,
+          "windspeed_kmh": 20.2,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -3161,7 +3161,7 @@
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 96.0,
-          "windspeed_kmh": 17.3,
+          "windspeed_kmh": 19.1,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -3174,8 +3174,8 @@
           "rain_probability": 0.11,
           "rain_probability_model": 0.96,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 98.0,
-          "windspeed_kmh": 16.6,
+          "cloudcover_pct": 97.0,
+          "windspeed_kmh": 18.7,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -3188,8 +3188,8 @@
           "rain_probability": 0.1,
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
-          "cloudcover_pct": 100.0,
-          "windspeed_kmh": 16.2,
+          "cloudcover_pct": 99.0,
+          "windspeed_kmh": 16.6,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -3203,7 +3203,7 @@
           "rain_probability_model": 0.81,
           "rain_probability_nwp": 0.02,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 15.5,
+          "windspeed_kmh": 15.8,
           "weathercode": 3,
           "weather_condition": "Cloudy"
         },
@@ -3212,28 +3212,28 @@
           "hour_offset": 23,
           "temperature_c": 19.3,
           "temp_source": "ridge_24h",
-          "precipitation_mm": 0.0,
-          "rain_probability": 0.1,
+          "precipitation_mm": 0.1,
+          "rain_probability": 0.4,
           "rain_probability_model": 0.81,
-          "rain_probability_nwp": 0.02,
+          "rain_probability_nwp": 0.35,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 15.8,
-          "weathercode": 3,
-          "weather_condition": "Cloudy"
+          "windspeed_kmh": 17.6,
+          "weathercode": 51,
+          "weather_condition": "Rainy"
         },
         {
           "local_time": "2026-06-17T23:00",
           "hour_offset": 24,
           "temperature_c": 18.6,
           "temp_source": "ridge_24h",
-          "precipitation_mm": 0.0,
-          "rain_probability": 0.1,
+          "precipitation_mm": 0.1,
+          "rain_probability": 0.4,
           "rain_probability_model": 0.81,
-          "rain_probability_nwp": 0.02,
+          "rain_probability_nwp": 0.35,
           "cloudcover_pct": 100.0,
-          "windspeed_kmh": 20.2,
-          "weathercode": 3,
-          "weather_condition": "Cloudy"
+          "windspeed_kmh": 16.6,
+          "weathercode": 51,
+          "weather_condition": "Rainy"
         }
       ],
       "multi_horizon": {
@@ -3264,13 +3264,13 @@
       },
       "rain_next_24h": {
         "any_rain": false,
-        "probability": 0.13,
+        "probability": 0.26,
         "model_probability": 0.81,
-        "nwp_probability": 0.05,
+        "nwp_probability": 0.2,
         "blend_alpha_nwp": 0.9,
         "rfc_raw_class": 1,
         "n_hours_with_rain": 0,
-        "total_precip_mm": 0.0
+        "total_precip_mm": 0.2
       },
       "meta": {
         "model_24h": "Ridge (alpha=10)",
