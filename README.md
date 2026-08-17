@@ -6,7 +6,7 @@ A production-grade machine learning system for weather prediction built entirely
 
 ## 🌍 Live Weather Predictions
 
-> Auto-updated every 3 h via GitHub Actions | Last run: 2026-08-17 18:48 UTC
+> Auto-updated every 3 h via GitHub Actions | Last run: 2026-08-17 21:38 UTC
 
 
 
@@ -28,7 +28,7 @@ A production-grade machine learning system for weather prediction built entirely
 | Shanghai | 🇨🇳 | 23:00 | +25.6°C | +26.7°C | +27.4°C | +28.0°C |  92% | 8.1 mm (6h) |  96% | ±3.5°C |
 | Chongqing | 🇨🇳 | 23:00 | +31.4°C | +31.0°C | +30.5°C | +30.1°C |  79% | 3.8 mm (3h) |  71% | ±3.5°C |
 | Nanjing | 🇨🇳 | 23:00 | +26.5°C | +26.7°C | +27.2°C | +27.8°C |  66% | 1.9 mm (3h) |  71% | ±3.5°C |
-| Dubai | 🇦🇪 | 23:00 | +33.8°C | +34.7°C | +36.1°C | +37.0°C |  12% | 0.0 mm (0h) |  71% | ±3.5°C |
+| Dubai | 🇦🇪 | 23:00 | +35.4°C | +34.7°C | +35.4°C | +35.8°C |  11% | 0.0 mm (0h) |  62% | ±3.5°C |
 
 > **How to read the rain columns.** `Rain 24h` is the **blended** probability that there will be any rain at all in the next 24 h, computed as `α·p_NWP + (1−α)·p_ML` with `α = 0.9`. The physical NWP signal dominates because the ML classifier was trained on a target (`precip_sum_next_24h > 0 mm`) that was 73.6 % positive in the training set and therefore has a positive prior bias. `NWP precip` shows the *actual* predicted rainfall in millimetres from Open-Meteo's numerical weather model, plus how many hours will have any precipitation. `ML only` shows the bagging-ensemble probability in isolation so you can see the drift. `+24h`, `+48h`, `+72h` come from dedicated Ridge (α=10) regressors trained in Notebook 05 on `temp_next_{24,48,72}h` with RMSE 3.5 / 4.5 / 5.1 °C. `Confidence` is ±1σ = ±RMSE of the 24 h test. `As of (local)` is the city's local timestamp of the last observed hour that anchors the forecast (end of the Open-Meteo past window, typically 23:00 of the previous day).
 
@@ -268,19 +268,19 @@ Click a city to expand. Each row is one hour; `temp` is our Ridge 24 h model rol
 | +9 | 2026-08-17 08:00 | +17.8°C |  11% |   2% |  96% | 0.0 mm | 100% |  5.8 km/h | Cloudy |
 | +10 | 2026-08-17 09:00 | +18.2°C |  11% |   2% |  96% | 0.0 mm | 100% |  4.0 km/h | Cloudy |
 | +11 | 2026-08-17 10:00 | +18.7°C |  11% |   2% |  96% | 0.0 mm | 100% |  6.5 km/h | Cloudy |
-| +12 | 2026-08-17 11:00 | +18.1°C |  11% |   2% |  96% | 0.0 mm | 100% |  7.4 km/h | Cloudy |
+| +12 | 2026-08-17 11:00 | +18.1°C |  11% |   2% |  96% | 0.0 mm | 100% |  8.1 km/h | Cloudy |
 | +13 | 2026-08-17 12:00 | +19.8°C |  11% |   2% |  96% | 0.0 mm | 100% |  8.3 km/h | Cloudy |
-| +14 | 2026-08-17 13:00 | +20.7°C |  41% |  35% |  96% | 0.1 mm | 100% | 11.0 km/h | Rainy |
-| +15 | 2026-08-17 14:00 | +21.6°C |  64% |  60% |  96% | 0.9 mm | 100% | 11.2 km/h | Rainy |
-| +16 | 2026-08-17 15:00 | +22.6°C |  64% |  60% |  96% | 0.5 mm | 100% |  9.9 km/h | Rainy |
-| +17 | 2026-08-17 16:00 | +23.2°C |  41% |  35% |  96% | 0.2 mm | 100% | 10.9 km/h | Rainy |
-| +18 | 2026-08-17 17:00 | +23.8°C |  64% |  60% |  96% | 0.3 mm | 100% | 10.5 km/h | Rainy |
-| +19 | 2026-08-17 18:00 | +23.9°C |  41% |  35% |  96% | 0.1 mm |  98% | 10.8 km/h | Rainy |
-| +20 | 2026-08-17 19:00 | +23.3°C |  11% |   2% |  96% | 0.0 mm | 100% | 11.7 km/h | Cloudy |
-| +21 | 2026-08-17 20:00 | +23.3°C |  11% |   2% |  96% | 0.0 mm | 100% |  9.8 km/h | Cloudy |
-| +22 | 2026-08-17 21:00 | +23.0°C |  11% |   2% |  96% | 0.0 mm | 100% | 11.4 km/h | Cloudy |
-| +23 | 2026-08-17 22:00 | +22.3°C |  64% |  60% |  96% | 0.3 mm | 100% |  9.7 km/h | Rainy |
-| +24 | 2026-08-17 23:00 | +21.9°C |  41% |  35% |  96% | 0.1 mm |  95% | 10.6 km/h | Rainy |
+| +14 | 2026-08-17 13:00 | +20.7°C |  41% |  35% |  96% | 0.1 mm | 100% | 11.3 km/h | Rainy |
+| +15 | 2026-08-17 14:00 | +21.6°C |  64% |  60% |  96% | 0.9 mm | 100% | 13.2 km/h | Rainy |
+| +16 | 2026-08-17 15:00 | +22.6°C |  64% |  60% |  96% | 0.5 mm | 100% | 10.2 km/h | Rainy |
+| +17 | 2026-08-17 16:00 | +23.2°C |  41% |  35% |  96% | 0.2 mm | 100% | 11.2 km/h | Rainy |
+| +18 | 2026-08-17 17:00 | +23.8°C |  64% |  60% |  96% | 0.3 mm | 100% | 11.8 km/h | Rainy |
+| +19 | 2026-08-17 18:00 | +23.9°C |  41% |  35% |  96% | 0.1 mm |  98% |  9.2 km/h | Rainy |
+| +20 | 2026-08-17 19:00 | +23.3°C |  11% |   2% |  96% | 0.0 mm | 100% | 12.8 km/h | Cloudy |
+| +21 | 2026-08-17 20:00 | +23.3°C |  11% |   2% |  96% | 0.0 mm | 100% | 11.2 km/h | Cloudy |
+| +22 | 2026-08-17 21:00 | +23.0°C |  11% |   2% |  96% | 0.0 mm | 100% | 11.7 km/h | Cloudy |
+| +23 | 2026-08-17 22:00 | +22.3°C |  64% |  60% |  96% | 0.3 mm | 100% | 11.8 km/h | Rainy |
+| +24 | 2026-08-17 23:00 | +21.9°C |  41% |  35% |  96% | 0.1 mm |  95% | 10.9 km/h | Rainy |
 
 </details>
 
@@ -307,11 +307,11 @@ Click a city to expand. Each row is one hour; `temp` is our Ridge 24 h model rol
 | +17 | 2026-08-17 16:00 | +21.3°C |  11% |   2% |  96% | 0.0 mm |  52% |  3.2 km/h | Cloudy |
 | +18 | 2026-08-17 17:00 | +21.8°C |  11% |   2% |  96% | 0.0 mm |  43% |  7.9 km/h | Clear |
 | +19 | 2026-08-17 18:00 | +22.2°C |  11% |   2% |  96% | 0.0 mm |  38% |  5.0 km/h | Clear |
-| +20 | 2026-08-17 19:00 | +21.8°C |  11% |   2% |  96% | 0.0 mm |  17% |  6.5 km/h | Clear |
-| +21 | 2026-08-17 20:00 | +21.4°C |  11% |   2% |  96% | 0.0 mm |   8% |  7.9 km/h | Clear |
-| +22 | 2026-08-17 21:00 | +21.3°C |  11% |   2% |  96% | 0.0 mm |   6% |  7.2 km/h | Clear |
-| +23 | 2026-08-17 22:00 | +20.8°C |  11% |   2% |  96% | 0.0 mm |   7% |  7.6 km/h | Clear |
-| +24 | 2026-08-17 23:00 | +20.4°C |  11% |   2% |  96% | 0.0 mm |   8% | 13.0 km/h | Clear |
+| +20 | 2026-08-17 19:00 | +21.8°C |  11% |   2% |  96% | 0.0 mm |  14% |  6.5 km/h | Clear |
+| +21 | 2026-08-17 20:00 | +21.4°C |  11% |   2% |  96% | 0.0 mm |  18% |  7.9 km/h | Clear |
+| +22 | 2026-08-17 21:00 | +21.3°C |  11% |   2% |  96% | 0.0 mm |  12% |  6.8 km/h | Clear |
+| +23 | 2026-08-17 22:00 | +20.8°C |  11% |   2% |  96% | 0.0 mm |  14% |  7.9 km/h | Clear |
+| +24 | 2026-08-17 23:00 | +20.4°C |  11% |   2% |  96% | 0.0 mm |  15% | 10.1 km/h | Clear |
 
 </details>
 
@@ -443,30 +443,30 @@ Click a city to expand. Each row is one hour; `temp` is our Ridge 24 h model rol
 
 | +h | local time | temp | rain % | (NWP) | (ML) | precip | clouds | wind | conditions |
 |----|------------|------|--------|-------|------|--------|--------|------|------------|
-| +1 | 2026-08-17 00:00 | +34.9°C |   8% |   2% |  65% | 0.0 mm |  98% |  8.5 km/h | Cloudy |
-| +2 | 2026-08-17 01:00 | +34.4°C |   8% |   2% |  65% | 0.0 mm | 100% |  8.7 km/h | Cloudy |
-| +3 | 2026-08-17 02:00 | +33.9°C |   8% |   2% |  65% | 0.0 mm |  98% |  7.5 km/h | Cloudy |
-| +4 | 2026-08-17 03:00 | +33.6°C |   8% |   2% |  65% | 0.0 mm |  92% |  8.4 km/h | Cloudy |
-| +5 | 2026-08-17 04:00 | +33.7°C |  10% |   2% |  81% | 0.0 mm |  98% |  8.4 km/h | Cloudy |
-| +6 | 2026-08-17 05:00 | +32.9°C |  10% |   2% |  81% | 0.0 mm |  30% |  5.8 km/h | Clear |
-| +7 | 2026-08-17 06:00 | +33.0°C |  10% |   2% |  81% | 0.0 mm |  37% |  5.9 km/h | Clear |
-| +8 | 2026-08-17 07:00 | +34.0°C |  10% |   2% |  81% | 0.0 mm |  18% |  4.7 km/h | Clear |
-| +9 | 2026-08-17 08:00 | +35.5°C |   8% |   2% |  65% | 0.0 mm |   2% |  2.8 km/h | Clear |
-| +10 | 2026-08-17 09:00 | +37.2°C |   8% |   2% |  65% | 0.0 mm |   2% |  3.0 km/h | Clear |
-| +11 | 2026-08-17 10:00 | +38.8°C |   8% |   2% |  65% | 0.0 mm |   0% |  4.5 km/h | Clear |
-| +12 | 2026-08-17 11:00 | +39.7°C |   9% |   2% |  71% | 0.0 mm |   4% |  6.5 km/h | Clear |
-| +13 | 2026-08-17 12:00 | +40.4°C |   9% |   2% |  71% | 0.0 mm |  14% | 11.2 km/h | Clear |
-| +14 | 2026-08-17 13:00 | +40.4°C |   9% |   2% |  71% | 0.0 mm |  26% | 14.6 km/h | Clear |
-| +15 | 2026-08-17 14:00 | +40.3°C |   5% |   2% |  35% | 0.0 mm |   0% | 14.3 km/h | Clear |
-| +16 | 2026-08-17 15:00 | +39.8°C |   5% |   2% |  35% | 0.0 mm |   0% | 12.2 km/h | Clear |
-| +17 | 2026-08-17 16:00 | +39.3°C |   8% |   2% |  62% | 0.0 mm |   0% | 12.5 km/h | Clear |
-| +18 | 2026-08-17 17:00 | +38.0°C |   8% |   2% |  62% | 0.0 mm |  38% | 12.3 km/h | Clear |
-| +19 | 2026-08-17 18:00 | +37.0°C |   8% |   2% |  62% | 0.0 mm |  39% | 10.9 km/h | Clear |
-| +20 | 2026-08-17 19:00 | +36.0°C |   8% |   2% |  62% | 0.0 mm |   7% |  7.0 km/h | Clear |
-| +21 | 2026-08-17 20:00 | +35.4°C |   8% |   2% |  62% | 0.0 mm |  21% |  5.9 km/h | Clear |
-| +22 | 2026-08-17 21:00 | +35.4°C |   5% |   2% |  35% | 0.0 mm |  41% |  6.3 km/h | Clear |
-| +23 | 2026-08-17 22:00 | +34.8°C |   5% |   2% |  35% | 0.0 mm |  20% |  9.9 km/h | Clear |
-| +24 | 2026-08-17 23:00 | +34.7°C |   9% |   2% |  71% | 0.0 mm |   9% |  8.7 km/h | Clear |
+| +1 | 2026-08-18 00:00 | +33.7°C |   8% |   2% |  65% | 0.0 mm |  10% |  9.4 km/h | Clear |
+| +2 | 2026-08-18 01:00 | +33.1°C |   8% |   2% |  65% | 0.0 mm |   2% | 11.1 km/h | Clear |
+| +3 | 2026-08-18 02:00 | +32.7°C |   8% |   2% |  65% | 0.0 mm |   1% |  7.8 km/h | Clear |
+| +4 | 2026-08-18 03:00 | +32.4°C |   8% |   2% |  65% | 0.0 mm |   6% |  9.7 km/h | Clear |
+| +5 | 2026-08-18 04:00 | +33.3°C |   9% |   2% |  71% | 0.0 mm |  24% | 13.2 km/h | Clear |
+| +6 | 2026-08-18 05:00 | +32.8°C |   9% |   2% |  71% | 0.0 mm |   5% | 15.6 km/h | Clear |
+| +7 | 2026-08-18 06:00 | +32.2°C |   9% |   2% |  71% | 0.0 mm |   9% | 16.6 km/h | Clear |
+| +8 | 2026-08-18 07:00 | +32.5°C |   9% |   2% |  71% | 0.0 mm |  49% | 15.9 km/h | Clear |
+| +9 | 2026-08-18 08:00 | +34.4°C |   8% |   2% |  62% | 0.0 mm |  40% | 13.4 km/h | Clear |
+| +10 | 2026-08-18 09:00 | +37.6°C |   8% |   2% |  62% | 0.0 mm |  72% | 10.9 km/h | Cloudy |
+| +11 | 2026-08-18 10:00 | +39.2°C |   8% |   2% |  62% | 0.0 mm |  76% |  9.9 km/h | Cloudy |
+| +12 | 2026-08-18 11:00 | +40.4°C |   5% |   2% |  35% | 0.0 mm |  41% |  9.0 km/h | Clear |
+| +13 | 2026-08-18 12:00 | +40.8°C |   8% |   2% |  62% | 0.0 mm |  42% |  4.3 km/h | Clear |
+| +14 | 2026-08-18 13:00 | +40.0°C |   8% |   2% |  62% | 0.0 mm |  71% |  3.7 km/h | Cloudy |
+| +15 | 2026-08-18 14:00 | +40.1°C |   5% |   2% |  35% | 0.0 mm |  53% | 16.5 km/h | Cloudy |
+| +16 | 2026-08-18 15:00 | +39.9°C |   5% |   2% |  35% | 0.0 mm |  34% | 20.2 km/h | Clear |
+| +17 | 2026-08-18 16:00 | +39.2°C |   5% |   2% |  35% | 0.0 mm |  19% | 16.3 km/h | Clear |
+| +18 | 2026-08-18 17:00 | +37.5°C |   8% |   2% |  62% | 0.0 mm |   9% | 13.3 km/h | Clear |
+| +19 | 2026-08-18 18:00 | +36.2°C |   8% |   2% |  62% | 0.0 mm |  17% | 12.4 km/h | Clear |
+| +20 | 2026-08-18 19:00 | +36.1°C |   5% |   2% |  35% | 0.0 mm |  27% |  9.0 km/h | Clear |
+| +21 | 2026-08-18 20:00 | +35.8°C |   8% |   2% |  62% | 0.0 mm |  25% |  7.9 km/h | Clear |
+| +22 | 2026-08-18 21:00 | +35.0°C |   8% |   2% |  62% | 0.0 mm |  21% | 10.3 km/h | Clear |
+| +23 | 2026-08-18 22:00 | +34.8°C |   9% |   2% |  71% | 0.0 mm |  12% | 11.7 km/h | Clear |
+| +24 | 2026-08-18 23:00 | +34.7°C |   8% |   2% |  62% | 0.0 mm |   0% |  9.7 km/h | Clear |
 
 </details>
 
@@ -488,20 +488,20 @@ Click a city to expand. Each row is one hour; `temp` is our Ridge 24 h model rol
 
 ### Drift Monitor (last run)
 
-⚠ Max PSI = 3.172  |  observations = 2352  |  cities = 14  |  status = drift detected
+⚠ Max PSI = 3.812  |  observations = 2352  |  cities = 14  |  status = drift detected
 
 | Feature | PSI | KS | Mean shift (σ_ref) | Status |
 |---------|-----|----|--------------------|--------|
 | `clearness_index` | 0.018 | 0.057 | +0.09 | ok |
-| `cloudcover` | 0.349 | 0.253 | -0.42 | severe |
-| `dewpoint_2m` | 2.553 | 0.290 | +0.60 | severe |
+| `cloudcover` | 0.358 | 0.255 | -0.42 | severe |
+| `dewpoint_2m` | 2.570 | 0.294 | +0.61 | severe |
 | `precipitation` | 0.014 | 0.036 | -0.08 | ok |
-| `pressure_msl` | 0.466 | 0.107 | -0.19 | severe |
-| `relativehumidity_2m` | 0.128 | 0.143 | -0.39 | moderate |
-| `temp_lag24h` | 3.172 | 0.379 | +0.76 | severe |
-| `temperature_2m` | 2.954 | 0.372 | +0.76 | severe |
-| `vpd` | 0.423 | 0.259 | +0.70 | severe |
-| `windspeed_10m` | 0.625 | 0.244 | -0.54 | severe |
+| `pressure_msl` | 0.467 | 0.107 | -0.19 | severe |
+| `relativehumidity_2m` | 0.117 | 0.137 | -0.37 | moderate |
+| `temp_lag24h` | 3.812 | 0.381 | +0.76 | severe |
+| `temperature_2m` | 3.020 | 0.375 | +0.76 | severe |
+| `vpd` | 0.419 | 0.258 | +0.67 | severe |
+| `windspeed_10m` | 0.619 | 0.241 | -0.54 | severe |
 
 <!-- END:LIVE_PREDICTIONS -->
 
