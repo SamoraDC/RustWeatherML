@@ -1,5 +1,5 @@
 {
-  "count": 943,
+  "count": 944,
   "dir": "monitoring_history",
   "files": [
     "2026-04-15.json",
@@ -944,6 +944,7 @@
     "2026-08-30T16Z.json",
     "2026-08-30T20Z.json",
     "2026-08-30T23Z.json",
-    "2026-08-31T03Z.json"
+    "2026-08-31T03Z.json",
+    "2026-08-31T12Z.json"
   ]
 }
