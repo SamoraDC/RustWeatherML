@@ -1,0 +1,99 @@
+{
+  "timestamp_utc": "2026-10-23T03:31:23.314499987+00:00",
+  "n_observations": 2352,
+  "n_cities": 14,
+  "max_psi": 0.8091991163974231,
+  "any_drift": true,
+  "features": {
+    "clearness_index": {
+      "psi": 0.06520092402535672,
+      "ks": 0.1023415215419502,
+      "current_mean": 0.241,
+      "current_std": 0.37,
+      "mean_shift_in_ref_std": -0.204,
+      "n_observations": 2352,
+      "status": "ok"
+    },
+    "cloudcover": {
+      "psi": 0.04997370660008803,
+      "ks": 0.08314300680272105,
+      "current_mean": 68.853,
+      "current_std": 39.189,
+      "mean_shift_in_ref_std": 0.15,
+      "n_observations": 2352,
+      "status": "ok"
+    },
+    "dewpoint_2m": {
+      "psi": 0.3504130860615361,
+      "ks": 0.10890022675736963,
+      "current_mean": 13.515,
+      "current_std": 6.513,
+      "mean_shift_in_ref_std": 0.147,
+      "n_observations": 2352,
+      "status": "severe"
+    },
+    "precipitation": {
+      "psi": 0.06945318393578678,
+      "ks": 0.09719479138321996,
+      "current_mean": 0.273,
+      "current_std": 0.857,
+      "mean_shift_in_ref_std": 0.173,
+      "n_observations": 2352,
+      "status": "ok"
+    },
+    "pressure_msl": {
+      "psi": 0.08627307196958318,
+      "ks": 0.09796626984126983,
+      "current_mean": 1014.831,
+      "current_std": 8.582,
+      "mean_shift_in_ref_std": 0.134,
+      "n_observations": 2352,
+      "status": "ok"
+    },
+    "relativehumidity_2m": {
+      "psi": 0.023963196495580895,
+      "ks": 0.058581349206349276,
+      "current_mean": 77.351,
+      "current_std": 17.174,
+      "mean_shift_in_ref_std": 0.105,
+      "n_observations": 2352,
+      "status": "ok"
+    },
+    "temp_lag24h": {
+      "psi": 0.7587432738595274,
+      "ks": 0.135256927629809,
+      "current_mean": 17.968,
+      "current_std": 6.227,
+      "mean_shift_in_ref_std": 0.103,
+      "n_observations": 2016,
+      "status": "severe"
+    },
+    "temperature_2m": {
+      "psi": 0.8091991163974231,
+      "ks": 0.1430555555555555,
+      "current_mean": 17.99,
+      "current_std": 6.13,
+      "mean_shift_in_ref_std": 0.102,
+      "n_observations": 2352,
+      "status": "severe"
+    },
+    "vpd": {
+      "psi": 0.07084531750404618,
+      "ks": 0.05591695011337883,
+      "current_mean": 5.344,
+      "current_std": 5.758,
+      "mean_shift_in_ref_std": -0.131,
+      "n_observations": 2352,
+      "status": "ok"
+    },
+    "windspeed_10m": {
+      "psi": 0.04992487144657748,
+      "ks": 0.07203798185941035,
+      "current_mean": 9.963,
+      "current_std": 6.08,
+      "mean_shift_in_ref_std": -0.193,
+      "n_observations": 2352,
+      "status": "ok"
+    }
+  }
+}
